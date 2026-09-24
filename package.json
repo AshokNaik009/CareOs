@@ -1,0 +1,17 @@
+{
+  "name": "rafeeq",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "cleanup": "node scripts/cleanup.js"
+  },
+  "description": "Rafeeq: personal health agent + risk-bearing care OS (Hub71 demo)",
+  "dependencies": {
+    "@elevenlabs/client": "1.25.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=18.17"
+  }
+}

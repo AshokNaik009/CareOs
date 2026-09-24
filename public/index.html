@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rafeeq — Your health agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Martian+Mono:wght@400&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/landing.css">
+</head>
+<body class="landing">
+
+<header class="topbar lp-bar">
+  <a class="brand" href="/" data-rev style="--d:0ms">Rafeeq <span class="ar">رفيق</span></a>
+  <nav class="nav">
+    <a href="/patient.html" data-rev style="--d:60ms">Patient agent</a>
+    <a href="/provider.html" data-rev style="--d:120ms">Care OS</a>
+  </nav>
+  <div class="spacer"></div>
+  <span class="demo-note" data-rev style="--d:180ms">Hub71 demo · synthetic data</span>
+</header>
+
+<!-- 1 · Poster hero -->
+<section class="stage stage-hero" id="hero" style="height:280svh">
+  <div class="pin dark">
+    <canvas class="field" id="field" aria-hidden="true"></canvas>
+    <div class="lockup">
+      <div class="poster-line small-line" style="--chars:26">Your health, acted upon.</div>
+      <div class="poster-line big-line" style="--chars:6">Rafeeq</div>
+      <div class="hero-sub label" data-rev style="--d:300ms">A personal health agent for every Abu Dhabi resident</div>
+    </div>
+    <div class="hero-meta">
+      <span data-rev style="--d:0ms">Malaffi record</span>
+      <span data-rev style="--d:70ms">Genome report</span>
+      <span data-rev style="--d:140ms">Wearable data</span>
+      <span data-rev style="--d:210ms">Arabic · English</span>
+      <span data-rev style="--d:280ms">Scroll ↓</span>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · Manifesto wipe -->
+<section class="stage stage-manifesto" id="manifesto" style="height:260svh">
+  <div class="pin">
+    <div class="label manifesto-kicker" data-rev>01 · The problem</div>
+    <div class="manifesto">
+      <p class="m-line m-base">The record already knew. Nobody acted on it.</p>
+      <p class="m-line m-fill" aria-hidden="true">The record already knew. Nobody acted on it.</p>
+    </div>
+    <p class="manifesto-foot" data-split>Results get filed. Radiologists recommend follow-ups. Genome reports flag drug risks. Watches log irregular heartbeats. Each sits in a different system, and the patient falls through the gap between them.</p>
+  </div>
+</section>
+
+<!-- 3 · Rail of findings -->
+<section class="stage stage-rail" id="rail" style="height:340svh">
+  <div class="pin">
+    <div class="rail-head">
+      <h2 class="display rail-title" data-split>The record flagged it. Nobody booked it.</h2>
+      <span class="label rail-hint" data-rev style="--d:200ms">Scroll → the safety net, one finding at a time</span>
+    </div>
+    <div class="rail-track" id="railTrack">
+      <article class="rcard" data-rev style="--d:0ms"><canvas data-plate="helix"></canvas><div class="rc-body"><div class="label">Genome × medication</div><h3>Clopidogrel may not work</h3><div class="rc-meta">CYP2C19 *2/*2 · poor metaboliser · stent protection at risk</div><div class="rc-mark">■ High · 300 days unreviewed</div></div></article>
+      <article class="rcard" data-rev style="--d:80ms"><canvas data-plate="lung"></canvas><div class="rc-body"><div class="label">Missed follow-up</div><h3>Lung nodule, no follow-up CT</h3><div class="rc-meta">7 mm nodule · Fleischner 6–12 months · never ordered</div><div class="rc-mark">■ High · 8 months</div></div></article>
+      <article class="rcard" data-rev style="--d:160ms"><canvas data-plate="pulse"></canvas><div class="rc-body"><div class="label">Wearable signal</div><h3>3 irregular-rhythm alerts</h3><div class="rc-meta">30 days · resting HR 72 → 81 · no ECG since</div><div class="rc-mark">■ High · possible AF</div></div></article>
+      <article class="rcard" data-rev style="--d:240ms"><canvas data-plate="drops"></canvas><div class="rc-body"><div class="label">Lab trend</div><h3>Kidneys under strain</h3><div class="rc-meta">eGFR 84 → 63 · UACR 48 · no protective medicine</div><div class="rc-mark">□ Medium</div></div></article>
+      <article class="rcard" data-rev style="--d:320ms"><canvas data-plate="bars"></canvas><div class="rc-body"><div class="label">Lab trend</div><h3>HbA1c climbing to 8.9%</h3><div class="rc-meta">7.1 → 7.6 → 8.1 → 8.9 · no specialist in 14 months</div><div class="rc-mark">□ Medium</div></div></article>
+      <article class="rcard" data-rev style="--d:400ms"><canvas data-plate="eye"></canvas><div class="rc-body"><div class="label">Referral lost</div><h3>Eye screening never booked</h3><div class="rc-meta">Referral written 5 months ago · status: not scheduled</div><div class="rc-mark">□ Medium</div></div></article>
+    </div>
+    <div class="rail-meter"><i></i></div>
+  </div>
+</section>
+
+<!-- 4 · The printed artifact -->
+<section class="stage stage-packet" id="packet" style="height:420svh">
+  <div class="pin dark packet-grid">
+    <div class="packet-copy">
+      <div class="label light" data-rev>02 · It doesn't remind you. It acts.</div>
+      <h2 class="display packet-title" data-split>One sentence in Arabic. Four things done.</h2>
+      <p class="packet-lede" data-split>Fatima says «احجزيها لي». Rafeeq explains the nodule, files the Thiqa pre-authorisation, books the scan and preps her questions.</p>
+      <ol class="cues" id="cues">
+        <li data-rev style="--d:0ms"><span>01</span>Found in the record</li>
+        <li data-rev style="--d:80ms"><span>02</span>Explained in her language</li>
+        <li data-rev style="--d:160ms"><span>03</span>Insurance pre-auth filed</li>
+        <li data-rev style="--d:240ms"><span>04</span>Scan booked, visit sheet ready</li>
+      </ol>
+      <div class="status-line label light" id="statusLine">● Reading Malaffi record…</div>
+    </div>
+    <div class="packet-wrap">
+      <div class="packet" id="packetEl">
+        <div class="pk-head">
+          <div class="label">Pre-authorisation · Thiqa</div>
+          <div class="pk-name">CT Chest</div>
+          <div class="label">Fatima Al Mansoori · Thiqa member</div>
+        </div>
+        <canvas class="pk-plate" data-plate="scan"></canvas>
+        <div class="pk-rows">
+          <div class="pk-row"><span>Reference</span><b id="pkRef">PA-·····</b></div>
+          <div class="pk-row"><span>Status</span><b id="pkStatus">pending</b></div>
+          <div class="pk-row"><span>Booked</span><b id="pkDate">— · —</b></div>
+        </div>
+        <div class="perf" aria-hidden="true"></div>
+      </div>
+      <div class="pk-meter"><i></i></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · Season band: the business -->
+<section class="stage stage-season" id="season" style="height:300svh">
+  <div class="pin">
+    <canvas class="contours" id="contours" aria-hidden="true"></canvas>
+    <div class="season-content">
+      <div class="label" data-rev>03 · Then we become the provider</div>
+      <h2 class="display season-title" data-split>The patient agent is the front door. The care OS is the business.</h2>
+      <div class="chapters" id="chapters">
+        <div class="chapter" data-rev style="--d:0ms"><div class="label">Chapter 01</div><h3>Win the patient</h3><p>A free agent that holds the whole record and acts on it. We partner with DoH's Sahatna app to reach people.</p></div>
+        <div class="chapter" data-rev style="--d:90ms"><div class="label">Chapter 02</div><h3>Take the risk</h3><p>Sign with Daman and Thiqa for diabetes and heart-failure members and get paid a fixed fee per member each month.</p></div>
+        <div class="chapter" data-rev style="--d:180ms"><div class="label">Chapter 03</div><h3>Keep the savings</h3><p>AI outreach closes care gaps before they become admissions. Every admission we prevent adds to our margin.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Economics table -->
+<section class="band">
+  <div class="band-inner">
+    <div class="label" data-rev>04 · Illustrative contract economics</div>
+    <h2 class="display band-title" data-split>Where the money is.</h2>
+    <table class="price-table">
+      <tbody>
+        <tr data-rev style="--d:0ms"><td class="label">Members under contract</td><td>Type 2 diabetes + heart failure cohort</td><td class="pt-v">1,240</td></tr>
+        <tr data-rev style="--d:70ms"><td class="label">Capitation</td><td>Paid to us per member, per month</td><td class="pt-v">AED 1,150</td></tr>
+        <tr data-rev style="--d:140ms"><td class="label">Medical cost before</td><td>Per member per month, pre-program</td><td class="pt-v">AED 1,080</td></tr>
+        <tr data-rev style="--d:210ms"><td class="label">Medical cost after</td><td>Trailing 3 months with AI care OS</td><td class="pt-v">AED 955</td></tr>
+        <tr data-rev style="--d:280ms"><td class="label">Annualised savings</td><td>Kept by the provider under the contract</td><td class="pt-v red">AED 1.86M</td></tr>
+      </tbody>
+    </table>
+    <div class="cta-row">
+      <a class="btn primary" href="/patient.html" data-rev style="--d:0ms">Talk to Rafeeq as Fatima →</a>
+      <a class="btn" href="/provider.html" data-rev style="--d:80ms">Open the care OS →</a>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="band band-faq">
+  <div class="band-inner">
+    <div class="label" data-rev>05 · Questions</div>
+    <details data-rev style="--d:0ms"><summary>Is any of this real patient data?</summary><p>No. Every patient, member and number is synthetic. The voice agents, speech recognition, tool calls, safety-net rules and AI notes are all live.</p></details>
+    <details data-rev style="--d:60ms"><summary>Does Rafeeq diagnose or change medicines?</summary><p>No. It explains results, spots what was missed and routes clinical decisions to the patient's doctor. For emergencies it tells people to call 998.</p></details>
+    <details data-rev style="--d:120ms"><summary>How are missed findings detected?</summary><p>With deterministic, explainable rules over the record: radiology recommendations never actioned, gene–drug pairs from CPIC guidance, lab trends without follow-up, wearable alerts with no ECG since, and referrals never booked. Each finding shows its evidence.</p></details>
+    <details data-rev style="--d:180ms"><summary>What runs the AI?</summary><p>Voice uses ElevenLabs Conversational AI in Arabic and English, with client tools for booking, pre-auth and alerts. Call notes and pre-call briefs use Groq first, OpenRouter as fallback, and an offline template if both fail.</p></details>
+    <details data-rev style="--d:240ms"><summary>Why partner with Sahatna rather than compete?</summary><p>Distribution is the hard part. The DoH app already reaches residents, and Rafeeq becomes the agent layer inside it.</p></details>
+  </div>
+</section>
+
+<footer class="lp-foot">
+  <div class="band-inner foot-grid">
+    <div class="foot-brand" data-rev>Rafeeq <span>رفيق</span></div>
+    <div class="foot-col">
+      <a href="/patient.html" data-rev style="--d:0ms">Patient agent</a>
+      <a href="/provider.html" data-rev style="--d:60ms">Care OS</a>
+    </div>
+    <div class="foot-col label light">
+      <span data-rev style="--d:0ms">Abu Dhabi · 2026</span>
+      <span data-rev style="--d:60ms">Synthetic data · not medical advice</span>
+    </div>
+  </div>
+</footer>
+
+<script src="/landing.js"></script>
+</body>
+</html>
