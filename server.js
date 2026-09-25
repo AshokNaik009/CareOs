@@ -297,7 +297,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const p = url.pathname;
   try {
-    if (p === '/live-health' || p.startsWith('/live-health/')) return liveHealthApp(req, res);
+    if (p === '/live-health' || p.startsWith('/live-health/') || p === '/retell/webhook' || p === '/retell/webhook/') return liveHealthApp(req, res);
     if (req.method === 'GET' && p === '/api/status') {
       return send(res, 200, { ready: !!state.agents, error: state.agentError, llm: LLM, phoneCallTo: OUTBOUND_CALL_TO ? phone.maskNumber(OUTBOUND_CALL_TO) : null, whatsappTo: OUTBOUND_WHATSAPP_TO ? phone.maskNumber(OUTBOUND_WHATSAPP_TO) : null });
     }
@@ -484,6 +484,14 @@ async function startServer() {
     clientSecret: process.env.WHOOP_CLIENT_SECRET,
     production: process.env.NODE_ENV === 'production',
     pageFile: path.join(PUBLIC, 'live-health/index.html'),
+    retell: {
+      enabled: process.env.RETELL_CALLS_ENABLED === 'true',
+      apiKey: process.env.RETELL_API_KEY,
+      webhookKey: process.env.RETELL_WEBHOOK_KEY,
+      agentId: process.env.RETELL_AGENT_ID,
+      fromNumber: process.env.RETELL_FROM_NUMBER,
+      allowedNumbers: (process.env.RETELL_ALLOWED_NUMBERS || '').split(',').map(value => value.trim()).filter(Boolean),
+    },
   });
   server.once('close', () => liveHealthApp.locals.dispose());
   server.listen(PORT, HOST, () => {
