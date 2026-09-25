@@ -31,7 +31,7 @@ export default function LiveHealthApp() {
   const [disconnecting, setDisconnecting] = useState(false);
 
   useEffect(() => {
-    const messages = { denied: 'WHOOP connection was cancelled. You can try again whenever you’re ready.', invalid_state: 'Your connection request expired or could not be verified. Please start again.', failed: 'WHOOP authorization failed. Check your app credentials and registered callback, then reconnect.', not_configured: 'Add your WHOOP developer credentials on the server to enable connection.' };
+    const messages = { denied: 'WHOOP connection was cancelled. You can try again whenever you’re ready.', invalid_state: 'Your connection request expired or could not be verified. Please start again.', failed: 'WHOOP authorization failed. Check your app credentials and registered callback, then reconnect.', not_configured: 'Add your WHOOP developer credentials on the server to enable connection.', invalid_scope: 'WHOOP rejected the requested permissions. Enable every scope this app requests, including read:profile, for your WHOOP developer app, then reconnect.' };
     const status = new URLSearchParams(location.search).get('connection');
     if (messages[status]) setError(messages[status]);
     if (status) history.replaceState(null, '', location.pathname);
@@ -55,6 +55,7 @@ export default function LiveHealthApp() {
   }, [session?.connected, profile, attempt]);
 
   async function disconnect() {
+    if (session?.sample) return logout();
     if (!window.confirm('Disconnect WHOOP and revoke this app’s access? This also clears your session and cached data.')) return;
     setDisconnecting(true);
     try { await api('/api/disconnect', { method: 'POST' }); setSession(s => ({ ...s, connected: false })); setReport(null); setProfile(initialProfile); setError(''); }
@@ -63,7 +64,7 @@ export default function LiveHealthApp() {
   }
 
   async function logout() {
-    try { await api('/api/logout', { method: 'POST' }); setSession(s => ({ ...s, connected: false })); setReport(null); setProfile(initialProfile); setError(''); }
+    try { await api('/api/logout', { method: 'POST' }); setSession(s => ({ ...s, connected: false, sample: false })); setReport(null); setProfile(initialProfile); setError(''); }
     catch (e) { setError(e.message); }
   }
 
@@ -76,7 +77,7 @@ export default function LiveHealthApp() {
   const status = report?.analysis.recovery_status;
   return <>
     <TopBar active="live-health" brand={<>Rafeeq <span className="ar">رفيق</span> <small>Live health</small></>}>
-      <span className="demo-note">{session?.connected ? 'WHOOP connected' : session ? 'Not connected' : 'Checking connection'}</span>
+      <span className="demo-note">{session?.sample ? 'Sample data' : session?.connected ? 'WHOOP connected' : session ? 'Not connected' : 'Checking connection'}</span>
     </TopBar>
     <main className="page lh-page" id="overview">
       <header className="lh-heading">
@@ -85,12 +86,13 @@ export default function LiveHealthApp() {
           <h1 className="display">Your day, <br /><span>in perspective.</span></h1>
           <p className="muted">Your body’s signals. Your personal baseline. A little more clarity.</p>
         </div>
-        {session?.connected && <button className="btn primary" disabled={busy} onClick={() => setAttempt(v => v + 1)}>{busy ? 'Syncing…' : 'Sync WHOOP'}</button>}
+        {session?.connected && <button className="btn primary" disabled={busy} onClick={() => setAttempt(v => v + 1)}>{busy ? 'Syncing…' : session.sample ? 'Refresh sample' : 'Sync WHOOP'}</button>}
       </header>
       <nav className="lh-section-nav" aria-label="Health sections">
         <a href="#overview">Overview</a><a href="#live-heart-rate">Live heart rate</a><a href="#baseline">Your baseline</a><a href="#method">How it works</a><a href="#emergency-alerts">Your circle of care</a>
-        <span>Personal data · Not a demo</span>
+        <span>{session?.sample ? 'Sample data · Not your readings' : 'Personal data · Not a demo'}</span>
       </nav>
+      {session?.sample && <div className="lh-message lh-sample" role="status"><p><strong>Sample data — not your readings.</strong> Generated for demonstration only. Contact alerts and calls are turned off in sample mode.</p><button className="btn sm" onClick={logout}>Exit sample mode</button></div>}
       {error && <div className="lh-message lh-error" role="alert"><p>{error}</p><button className="btn sm" onClick={() => { setError(''); setAttempt(v => v + 1); }}>Try again</button></div>}
       {busy && <div className="lh-message" role="status">Reading your history and calculating personal baselines…</div>}
       {report ? <section className={`card lh-brief lh-status-${status ?? 'unknown'}`}>
@@ -98,7 +100,7 @@ export default function LiveHealthApp() {
           <p className="label">Your daily brief</p>
           <h2 className="lh-display-title">{report.analysis.health_flag ? 'A little extra care today.' : status === null ? 'Waiting for today’s picture.' : report.analysis.trends.hrv === 'down' || report.analysis.trends.sleep === 'declining' || report.analysis.trends.resting_hr === 'up' ? 'Make room for recovery.' : 'Let your own baseline guide you.'}</h2>
           <p>{report.analysis.summary}</p>
-          <p className="label">Local rules · Synced {new Date(report.fetched_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {timeZone}</p>
+          <p className="label">{report.sample ? 'Sample data · ' : ''}Local rules · Synced {new Date(report.fetched_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {timeZone}</p>
         </div>
         <div className="lh-recovery">
           <strong>{fmt(report.current?.recovery)}{report.current?.recovery != null && <small>%</small>}</strong>
@@ -118,6 +120,7 @@ export default function LiveHealthApp() {
           {!session?.connected && (session?.configured
             ? <a className="btn primary" href="/live-health/auth/whoop">Connect WHOOP</a>
             : <button className="btn primary" disabled>{session ? 'Server setup needed' : 'Checking connection…'}</button>)}
+          {!session?.connected && session?.sampleAvailable && <a className="btn" href="/live-health/auth/sample">View sample data</a>}
           <p className="small muted">Read-only health access. Disconnect whenever you choose.</p>
         </div>
       </section>}
@@ -143,7 +146,7 @@ export default function LiveHealthApp() {
         <SleepAndWorkouts report={report} />
         <Baselines report={report} />
       </>}
-      {!report && <section className="card lh-empty" id="baseline"><h2>Your history tells the story.</h2><p>Compare today with your own 7-day and 30-day averages. Missing readings stay missing, and trends only appear when there’s enough history.</p><span className="tag">No sample readings</span></section>}
+      {!report && <section className="card lh-empty" id="baseline"><h2>Your history tells the story.</h2><p>Compare today with your own 7-day and 30-day averages. Missing readings stay missing, and trends only appear when there’s enough history.</p><span className="tag">{session?.sampleAvailable ? 'Sample data is opt-in and labelled' : 'No sample readings'}</span></section>}
       <section className="card lh-profile">
         <div><h2>What are you working toward?</h2><p className="muted">Your goal shapes the guidance, not the measurements.</p></div>
         <div className="lh-profile-fields">
@@ -155,12 +158,14 @@ export default function LiveHealthApp() {
         </div>
       </section>
       <Methodology />
-      <EmergencyAlerts key={session?.connected ? 'alerts-connected' : 'alerts-disconnected'} connected={Boolean(session?.connected)} api={api} />
+      <EmergencyAlerts key={session?.connected && !session.sample ? 'alerts-connected' : 'alerts-disconnected'} connected={Boolean(session?.connected && !session.sample)} api={api} />
       {report && <section className="card lh-json"><details><summary>View structured analysis JSON</summary><div className="lh-actions"><span className="label">Exact analysis schema · Unknown values are null</span><button className="btn sm" onClick={copyJson}>{copyState}</button></div><pre>{JSON.stringify(report.analysis, null, 2)}</pre></details></section>}
       <footer className="lh-footer">
         <span className="label">Rafeeq Live Health · Independent wellness companion. Not affiliated with WHOOP.</span>
-        {session?.connected && <div className="lh-actions"><button className="btn sm" onClick={logout}>Sign out</button><button className="btn sm danger" disabled={disconnecting} onClick={disconnect}>{disconnecting ? 'Disconnecting…' : 'Disconnect WHOOP'}</button></div>}
-        <p>Not medical advice. Listen to your body, not just your wearable. Your readings are not shared with the demo’s AI agents or provider feed. If you enable contact alerts, matched readings are shared with Retell AI and your chosen contact. <a href="/privacy">Privacy policy</a>.</p>
+        {session?.connected && (session.sample
+          ? <div className="lh-actions"><button className="btn sm" onClick={logout}>Exit sample mode</button></div>
+          : <div className="lh-actions"><button className="btn sm" onClick={logout}>Sign out</button><button className="btn sm danger" disabled={disconnecting} onClick={disconnect}>{disconnecting ? 'Disconnecting…' : 'Disconnect WHOOP'}</button></div>)}
+        <p>Not medical advice. Listen to your body, not just your wearable. Your readings are not shared with the demo’s AI agents or provider feed. If you enable contact alerts, matched readings and the AI conversation are processed by Twilio and ElevenLabs and shared with your chosen contact. <a href="/privacy">Privacy policy</a>.</p>
       </footer>
     </main>
   </>;
