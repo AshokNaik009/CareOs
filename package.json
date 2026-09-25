@@ -3,15 +3,25 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "dev": "concurrently -k -n server,web -c red,blue \"node server.js\" \"vite\"",
+    "build": "vite build",
+    "start": "vite build && node server.js",
+    "serve": "node server.js",
     "cleanup": "node scripts/cleanup.js"
   },
   "description": "Rafeeq: personal health agent + risk-bearing care OS (Hub71 demo)",
   "dependencies": {
-    "@elevenlabs/client": "1.25.0"
+    "@elevenlabs/client": "1.25.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "private": true,
   "engines": {
     "node": ">=18.17"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.4",
+    "vite": "^6.4.3"
   }
 }

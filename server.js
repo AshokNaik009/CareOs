@@ -233,9 +233,9 @@ async function callNote(role, id, transcript) {
 }
 
 // ---- http ----
-const PUBLIC = path.join(__dirname, 'public');
-const VENDOR = path.join(__dirname, 'node_modules', '@elevenlabs', 'client', 'dist', 'lib.iife.js');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json' };
+// The React frontend is built by Vite into dist/ (npm run build). In dev, Vite serves it instead.
+const PUBLIC = path.join(__dirname, 'dist');
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.map': 'application/json', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
 
 function send(res, code, body, type = 'application/json') {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' });
@@ -356,7 +356,6 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' });
-    if (p === '/vendor/elevenlabs-client.js') return serveStatic(res, VENDOR);
     const file = path.normalize(path.join(PUBLIC, p === '/' ? 'index.html' : p));
     if (!file.startsWith(PUBLIC + path.sep)) return send(res, 403, { error: 'forbidden' });
     return serveStatic(res, file);
@@ -381,5 +380,6 @@ async function provision() {
 
 server.listen(PORT, HOST, () => {
   console.log(`Rafeeq demo on http://localhost:${PORT}`);
+  if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) console.warn('Frontend not built: run `npm run build` (or `npm run dev` for the Vite dev server).');
   provision();
 });
