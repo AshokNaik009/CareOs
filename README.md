@@ -48,6 +48,17 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 
 ### Live Health
 
+**Your day, in perspective.** Live Health turns your own WHOOP recovery, sleep and strain into a clear daily brief, measured against your personal history rather than population averages. Unlike the patient and provider demos, it uses your real data. Try it at [rafeeq-fgsm.onrender.com/live-health](https://rafeeq-fgsm.onrender.com/live-health).
+
+![Live Health: connect WHOOP for a daily brief, and pair a sensor for live heart rate](docs/images/live-health.png)
+
+- **Connect WHOOP:** read-only access to recovery, sleep, cycles and workouts. Disconnect at any time.
+- **Overview:** today's recovery guidance, explained in plain language.
+- **Your baseline:** 7- and 30-day personal baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones.
+- **Live heart rate:** turn on Heart Rate Broadcast in the WHOOP app, then pair your WHOOP (or any Bluetooth heart-rate sensor) to see beats per minute in real time, straight from the sensor rather than the WHOOP cloud.
+- **How it works:** the full methodology, plus the analysis as copyable JSON.
+- **Private by design:** analysis runs on the server with no AI provider or API key involved. Live heart rate stays in your browser; it is never saved or uploaded.
+
 The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Missing readings remain missing; there are no user-facing sample readings or LLM calls.
 
 Configure `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, and `APP_ORIGIN` in the server environment or local `.env`. Do not copy credentials into frontend code or commit them. Register **`APP_ORIGIN/live-health/auth/whoop/callback`** in your WHOOP developer app.
