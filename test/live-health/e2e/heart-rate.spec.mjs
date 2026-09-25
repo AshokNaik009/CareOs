@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { buildReport } from '../../../lib/live-health/analysis.mjs';
+import { normalize } from '../../../lib/live-health/normalize.mjs';
+import { createSampleData } from '../../../lib/live-health/sample.mjs';
 
 async function mockBluetooth(page, options = {}) {
   await page.addInitScript(({ supported = true, error = null, delayed = false }) => {
@@ -40,6 +42,76 @@ const connect = async page => {
   await panel(page).getByRole('button', { name: 'Connect live heart rate', exact: true }).click();
   await expect(panel(page).getByText('Waiting for a reading', { exact: true })).toBeVisible();
 };
+
+async function mockRestDashboard(page) {
+  const now = Date.parse('2026-09-25T00:05:00Z');
+  const report = { ...buildReport(normalize(createSampleData(now), 'UTC'), '2026-09-25'), sample: true, source: 'mock_rest', timeZone: 'UTC', fetched_at: new Date(now).toISOString(), live_bpm: 180 };
+  await page.route('**/live-health/api/session', route => route.fulfill({ json: { configured: false, connected: true, sample: true, sampleAvailable: true } }));
+  await page.route('**/live-health/api/report', route => route.fulfill({ json: report }));
+  return report;
+}
+
+test('mock REST metrics never supply live BPM or reach alert APIs', async ({ page }, testInfo) => {
+  await mockBluetooth(page);
+  const report = await mockRestDashboard(page);
+  await page.clock.install();
+  const alerts = [];
+  page.on('request', request => { if (request.url().includes('/api/alerts')) alerts.push(request.url()); });
+  await page.goto('/live-health');
+  await expect(page.getByText('REST metrics are mock data.', { exact: true })).toBeVisible();
+  await expect(page.locator('.lh-metric .source')).toHaveText(['Mock REST', 'Mock REST', 'Mock REST', 'Mock REST']);
+  await expect(page.getByText('WHOOP demo connected', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('WHOOP demo connection')).toContainText('Connected · Demo');
+  const format = value => new Intl.NumberFormat('en', { maximumFractionDigits: 1 }).format(value);
+  for (const [index, metric] of ['hrv', 'resting_hr', 'sleep_hours', 'strain'].entries()) {
+    const card = page.locator('.lh-metric').nth(index);
+    await expect(card.locator('.lh-metric-value')).toContainText(format(report.current[metric]));
+    await expect(card.locator('.lh-averages strong')).toHaveText([format(report.baselines[metric].week.average), format(report.baselines[metric].month.average)]);
+    await expect(card).not.toContainText('Awaiting your data');
+  }
+  await expect(panel(page).getByText('Real sensor only. Never mocked.', { exact: true })).toBeVisible();
+  await expect(panel(page).getByTestId('live-bpm')).toHaveText('—');
+  await expect(page.getByRole('link', { name: 'Connect WHOOP', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save alert preferences' })).toBeDisabled();
+  await expect(page.locator('#emergency-alerts')).toContainText('Calls disabled: REST metrics are mocked.');
+  await connect(page);
+  await expect(panel(page).getByTestId('live-bpm')).toHaveText('—');
+  await page.evaluate(() => window.bleTest.emit([0, 83]));
+  await expect(panel(page).getByTestId('live-bpm')).toHaveText('83');
+  let release;
+  const waiting = new Promise(resolve => { release = resolve; });
+  await page.route('**/live-health/api/report', async route => { await waiting; await route.fulfill({ json: report }); });
+  const refresh = page.waitForRequest('**/live-health/api/report');
+  await page.getByRole('button', { name: 'Refresh mock metrics' }).click();
+  await refresh;
+  await expect(page.getByRole('button', { name: 'Syncing…' })).toBeDisabled();
+  await expect(page.locator('.lh-metrics')).not.toContainText('Awaiting your data');
+  await expect(page.locator('.lh-metric-value')).toHaveCount(4);
+  release();
+  await expect(page.getByRole('button', { name: 'Refresh mock metrics' })).toBeEnabled();
+  await expect(panel(page).getByTestId('live-bpm')).toHaveText('83');
+  expect(await page.evaluate(() => window.bleTest.disconnects)).toBe(0);
+  await page.clock.fastForward(10001);
+  await expect(panel(page).getByTestId('live-bpm')).toHaveText('—');
+  await expect(page.locator('.lh-metric-value').first()).not.toHaveText('—');
+  await page.evaluate(() => window.bleTest.emit([0, 84]));
+  await expect(panel(page).getByTestId('live-bpm')).toHaveText('84');
+  expect(alerts).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath('mock-rest-real-sensor.png'), fullPage: true });
+});
+
+test('mock REST export is labelled and cannot invent heart rate in an unsupported browser', async ({ page }) => {
+  await mockBluetooth(page, { supported: false });
+  const report = await mockRestDashboard(page);
+  await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: { writeText: async value => { window.copiedAnalysis = value; } } }));
+  await page.goto('/live-health');
+  await expect(page.getByRole('button', { name: 'Refresh mock metrics' })).toBeEnabled();
+  await expect(panel(page).getByTestId('live-bpm')).toHaveText('—');
+  await expect(panel(page).getByRole('button', { name: 'Connect live heart rate' })).toBeDisabled();
+  await page.getByText('View structured analysis JSON', { exact: true }).click();
+  await page.getByRole('button', { name: 'Copy JSON', exact: true }).click();
+  expect(JSON.parse(await page.evaluate(() => window.copiedAnalysis))).toEqual({ source: 'mock_rest', sample: true, analysis: report.analysis });
+});
 
 test('Bluetooth is opt-in and can be used without a cloud session', async ({ page }) => {
   await mockBluetooth(page);

@@ -13,7 +13,7 @@ const token = { access_token: 'test-access', refresh_token: 'test-refresh', expi
 
 async function harness(t, options = {}) {
   const calls = [];
-  const app = createApp({ origin, clientId: 'test-client', clientSecret: 'test-secret', fetchImpl: async (url, init) => { calls.push({ url: String(url), init }); return String(url).includes('/token') ? json(token) : json({ records: [] }); }, ...options });
+  const app = createApp({ origin, sampleData: false, clientId: 'test-client', clientSecret: 'test-secret', fetchImpl: async (url, init) => { calls.push({ url: String(url), init }); return String(url).includes('/token') ? json(token) : json({ records: [] }); }, ...options });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(async () => { app.locals.dispose(); await new Promise(resolve => server.close(resolve)); });
@@ -76,25 +76,38 @@ test('callback rejects absent, mismatched, and multibyte state without token exc
   assert.equal(calls.length, 0);
 });
 
-test('sample mode is off by default', async t => {
-  const { request } = await harness(t);
+test('real WHOOP mode explicitly disables mock REST data', async t => {
+  const { request } = await harness(t, { sampleData: false });
   assert.equal((await request('/auth/sample')).status, 404);
   assert.equal((await (await request('/api/session')).json()).sampleAvailable, false);
 });
 
-test('opt-in sample mode serves labelled analysis without WHOOP or alerts', async t => {
-  const { request, calls } = await harness(t, { sampleData: true });
-  const start = await request('/auth/sample');
-  assert.equal(start.headers.get('location'), basePath);
-  const cookie = start.headers.get('set-cookie').split(';')[0];
-  assert.deepEqual(await (await request('/api/session', { headers: { Cookie: cookie } })).json(), { configured: true, connected: true, sample: true, sampleAvailable: true });
-  const report = await request('/api/report', { method: 'POST', headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ timeZone: 'Asia/Dubai' }) });
+test('mock REST metrics load by default without WHOOP login or external requests', async t => {
+  const { request, calls } = await harness(t, { sampleData: undefined });
+  const session = await request('/api/session');
+  assert.deepEqual(await session.json(), { configured: false, connected: true, sample: true, sampleAvailable: true });
+  assert.equal(session.headers.get('set-cookie'), null);
+  const report = await request('/api/report', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ timeZone: 'Asia/Dubai' }) });
   assert.equal(report.status, 200);
   const body = await report.json();
   assert.equal(body.sample, true);
+  assert.equal(body.source, 'mock_rest');
   assert.equal(typeof body.current.recovery, 'number');
-  assert.equal((await request('/api/alerts', { headers: { Cookie: cookie } })).status, 401);
+  assert.equal(Object.hasOwn(body, 'live_bpm'), false);
+  assert.equal((await request('/api/alerts')).status, 403);
+  assert.equal((await request('/auth/whoop')).headers.get('location'), `${basePath}?connection=not_configured`);
   assert.equal(calls.length, 0);
+});
+
+test('mock REST mode refuses call preferences even when voice credentials are configured', async t => {
+  let external = 0;
+  const { request } = await harness(t, { sampleData: true, origin: publicOrigin, twilio: twilioConfig, fetchImpl: async () => { external++; throw new Error('Must never fetch in mock REST mode'); } });
+  for (const method of ['GET', 'PUT']) {
+    const response = await request('/api/alerts', { method, headers: { Origin: publicOrigin, 'Content-Type': 'application/json' }, ...(method === 'PUT' ? { body: JSON.stringify({ ...emptyPreferences(), enabled: true, consent: true }) } : {}) });
+    assert.equal(response.status, 403);
+    assert.match((await response.json()).error, /mock REST/i);
+  }
+  assert.equal(external, 0);
 });
 
 test('WHOOP scope errors report the cause without token exchange', async t => {

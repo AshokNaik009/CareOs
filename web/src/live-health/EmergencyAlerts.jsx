@@ -18,7 +18,7 @@ function Illustration({ icon }) {
   </svg>;
 }
 
-export default function EmergencyAlerts({ connected, api }) {
+export default function EmergencyAlerts({ connected, api, mockRest = false }) {
   const [draft, setDraft] = useState(emptyPreferences);
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -88,7 +88,7 @@ export default function EmergencyAlerts({ connected, api }) {
       <div className={`lh-alert-state ${enabled ? 'lh-alert-state-on' : ''}`}><span className="label">Rafeeq × Twilio</span><strong>{expired ? 'Session expired' : enabled ? 'Calls enabled' : 'Calls are off'}</strong><span>{enabled ? 'Session-only wellness alerts' : 'You decide when to switch on'}</span><span>Two-way voice by ElevenLabs</span></div>
     </header>
     <div className="lh-alert-notice"><strong>A check-in, not an emergency service.</strong> WHOOP provides delayed, scored readings—not continuous monitoring. These alerts cannot detect a medical emergency. If you feel seriously unwell, contact local emergency services directly.</div>
-    {!connected && <p className="lh-alert-hint">Connect WHOOP above to choose alerts and save your emergency contact.</p>}
+    {!connected && <p className="lh-alert-hint">{mockRest ? 'Calls disabled: REST metrics are mocked. Real Bluetooth heart rate is display-only and never triggers a call. Switch the server to real WHOOP mode before enabling contact alerts.' : 'Connect WHOOP above to choose alerts and save your emergency contact.'}</p>}
     {error && <div className="lh-message lh-error" role="alert"><p>{error}</p><button type="button" className="btn sm" onClick={() => setAttempt(v => v + 1)}>Reload alert settings</button></div>}
     {expired && <p className="lh-alert-hint">Reconnect WHOOP to set up alerts again. This session is no longer monitoring.</p>}
     <form onSubmit={save}>

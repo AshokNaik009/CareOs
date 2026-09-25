@@ -484,7 +484,7 @@ async function startServer() {
     clientSecret: process.env.WHOOP_CLIENT_SECRET,
     production: process.env.NODE_ENV === 'production',
     pageFile: path.join(PUBLIC, 'live-health/index.html'),
-    sampleData: process.env.LIVE_HEALTH_SAMPLE_DATA === 'true',
+    sampleData: process.env.LIVE_HEALTH_SAMPLE_DATA !== 'false',
     twilio: {
       enabled: process.env.TWILIO_CALLS_ENABLED === 'true',
       accountSid: process.env.TWILIO_ACCOUNT_SID,
