@@ -1,6 +1,6 @@
 # Rafeeq · رفيق
 
-**A personal health agent connected to a provider Care OS.** Built as a Hub71 hackathon demo for an Abu Dhabi healthcare scenario, Rafeeq shows how fragmented health information could become coordinated follow-up: spot a missed finding, explain it to the patient, arrange the next step, and update the care team live.
+**A personal health agent connected to a provider Care OS.** Built for Abu Dhabi's health system, Rafeeq turns fragmented health information into coordinated follow-up: spot a missed finding, explain it to the patient, arrange the next step, and update the care team live.
 
 The repository is named **CareOs**; the application is **Rafeeq**. It combines a patient-facing Arabic/English assistant with a dashboard for a provider paid a fixed amount per member per month, illustrating how proactive care could reduce avoidable admissions.
 
@@ -139,7 +139,8 @@ Existing process environment variables take precedence over `.env` values.
 | Variable | Default | Purpose |
 |---|---|---|
 | `ELEVENLABS_API_KEY` | Unset | Required for voice and conversational text, including agent/tool provisioning. |
-| `AGENT_LLM` | `claude-haiku-4-5` | Model configured on the ElevenLabs agents. |
+| `AGENT_LLM` | `claude-haiku-4-5` | Default model for the ElevenLabs agents; always used by the English agents. |
+| `AGENT_LLM_AR` | Falls back to `AGENT_LLM` | Optional override for both Arabic agents. Set it in `.env` or run `AGENT_LLM_AR=gpt-4.1 npm run dev`; restart the server to sync the agents. An unset or empty value keeps the default model. |
 | `LLM_PROVIDERS` | `groq,openrouter` | Comma-separated provider order for briefs and notes; providers without keys are skipped. |
 | `GROQ_API_KEY` | Unset | Enables Groq text inference. |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | Groq model for briefs and notes. |
@@ -185,15 +186,14 @@ It's built around local systems and people: Malaffi records, Thiqa and Daman cov
 | Why would a provider buy it? | Under capitation, each avoided admission is kept margin. The Care OS turns care gaps into ranked, completed outreach. |
 | What about privacy? | Keys stay server-side and the browser receives only short-lived conversation URLs. A production version would need UAE data residency, DoH approval and a full security and clinical-safety review (see [Scope and limitations](#scope-and-limitations)). |
 
-Say the gaps before the judges do: there are no live integrations, and the risk scores and savings are illustrative.
+Name the gaps up front: there are no live integrations yet, and the risk scores and savings are illustrative.
 
-### Demo-day checklist
+### Before a live demo
 
 - Start the server early and wait for `Voice agents ready.` in the terminal.
 - Press **Reset demo**, then **Confirm reset?**, before going on stage.
 - Test the microphone in the actual room. If it's noisy, use **Type instead** or **Simulate by text**: they run the same agents.
 - Keep a screen recording of the full flow as a fallback if the network fails.
-- Check the hackathon's judging criteria and weight the story to match.
 
 ## Project structure
 
@@ -235,9 +235,10 @@ Conversation roles are `companion` and `outreach`; languages are `en` and `ar`.
 
 ## Verification and troubleshooting
 
-There is currently no automated test suite or linter. Build the frontend and check the server-side JavaScript syntax from the repository root:
+Run the agent-configuration regression tests (with mocked network and cache access), build the frontend and check the server-side JavaScript syntax from the repository root. There is currently no linter.
 
 ```bash
+npm test
 npm run build
 for file in server.js lib/*.js scripts/*.js; do
   node --check "$file" || exit 1

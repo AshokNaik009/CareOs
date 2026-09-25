@@ -24,6 +24,7 @@ const { PATIENTS, CONTRACT, PROGRAM_BENEFITS, buildPopulation, costSeries, NOW, 
 const { findingsFor, contextFor } = require('./lib/findings');
 const { ensureAgents, signedUrl } = require('./lib/agents');
 const { completeJson } = require('./lib/llm');
+const whoop = require('./lib/whoop');
 
 // ---- in-memory state ----
 const state = {
@@ -353,6 +354,19 @@ const server = http.createServer(async (req, res) => {
         return send(res, 400, { error: 'patient-agent tool needs a patient id' });
       }
       return send(res, 200, fn(id, params || {}));
+    }
+
+    if (req.method === 'GET' && p === '/privacy') return send(res, 200, whoop.privacyPage(), TYPES['.html']);
+    if (req.method === 'GET' && p === '/api/whoop/status') return send(res, 200, whoop.status());
+    if (req.method === 'GET' && p === '/whoop/connect') {
+      const to = whoop.connectUrl(req);
+      if (!to) return send(res, 500, { error: 'WHOOP_CLIENT_ID is not set' });
+      res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+    if (req.method === 'GET' && p === '/whoop/callback') {
+      const r = await whoop.handleCallback(req, url);
+      return send(res, r.status, r.html, TYPES['.html']);
     }
 
     if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' });
