@@ -356,7 +356,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, fn(id, params || {}));
     }
 
-    if (req.method === 'GET' && p === '/privacy') return send(res, 200, whoop.privacyPage(), TYPES['.html']);
+    if (req.method === 'GET' && p === '/privacy') return serveStatic(res, path.join(PUBLIC, 'privacy.html'));
     if (req.method === 'GET' && p === '/api/whoop/status') return send(res, 200, whoop.status());
     if (req.method === 'GET' && p === '/whoop/connect') {
       const to = whoop.connectUrl(req);
