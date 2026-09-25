@@ -3,7 +3,7 @@
 import { Conversation } from '@elevenlabs/client';
 import { api } from './api.js';
 
-const TOOL_NAMES = ['book_appointment', 'submit_preauthorization', 'notify_care_team', 'prepare_visit_summary', 'schedule_visit', 'log_call_outcome', 'escalate_to_nurse'];
+const TOOL_NAMES = ['propose_visit', 'book_appointment', 'submit_preauthorization', 'notify_care_team', 'prepare_visit_summary', 'schedule_visit', 'log_call_outcome', 'escalate_to_nurse'];
 
 // h: { onMessage(role, text), onMode(mode), onStatus(status), onTool(name, params, result), onEnd(transcript), onError(msg) }
 export async function startAgent({ role, lang, id, textOnly }, h) {
@@ -14,7 +14,7 @@ export async function startAgent({ role, lang, id, textOnly }, h) {
   const clientTools = {};
   for (const name of TOOL_NAMES) {
     clientTools[name] = async (params) => {
-      const r = await api.post('/api/action', { tool: name, id, params });
+      const r = await api.post('/api/action', { tool: name, id, params, sessionId: session.sessionId, transcript });
       h.onTool && h.onTool(name, params, r);
       return r.say;
     };

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Comparison</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f6f5f2; --card: #fff; --ink: #1a1a1a; --muted: #6b6b6b; --line: #e3e1dc; --red: #c8102e; --tool: #eef4ff; --me: #1a1a1a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 Inter, 'IBM Plex Sans Arabic', system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; padding: 16px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 17px; margin: 0 12px 4px 0; }
+  label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+  select, input, button, textarea { font: inherit; }
+  select, input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  button { padding: 7px 14px; border: 1px solid var(--ink); border-radius: 6px; background: var(--ink); color: #fff; cursor: pointer; }
+  button.ghost { background: #fff; color: var(--ink); }
+  button:disabled { opacity: .5; cursor: default; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 16px 130px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .col { background: var(--card); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+  .col h2 { margin: 0; padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+  .col h2 .ctl { display: flex; gap: 6px; min-width: 0; }
+  .col h2 input { width: 100%; max-width: 200px; min-width: 0; }
+  .msgs { padding: 12px 14px; display: grid; gap: 10px; }
+  .msg { padding: 9px 12px; border-radius: 10px; background: #f1f0ec; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.user { background: var(--me); color: #fff; justify-self: end; max-width: 85%; }
+  .msg[dir=rtl] { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 17px; line-height: 1.9; }
+  .meta { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); margin-top: 4px; direction: ltr; }
+  .meta button { padding: 2px 8px; font-size: 12px; }
+  .tool { font: 12px/1.4 ui-monospace, Menlo, monospace; background: var(--tool); padding: 6px 8px; border-radius: 6px; direction: ltr; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .err { color: var(--red); font-size: 13px; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--line); padding: 12px 16px; display: flex; gap: 10px; }
+  footer textarea { flex: 1; min-width: 0; resize: none; height: 56px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .note { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent LLM comparison</h1>
+  <label>Patient <select id="patient"></select></label>
+  <label>Agent <select id="role"><option value="companion">Rafeeq (health agent)</option><option value="outreach">Outreach call</option></select></label>
+  <label>Language <select id="lang"><option value="ar">Arabic</option><option value="en">English</option></select></label>
+  <button class="ghost" id="reset">Restart conversation</button>
+  <span class="note" id="status"></span>
+</header>
+<main>
+  <section class="col" data-side="0"><h2><span>A</span><span class="ctl"><input list="models" class="model"><select class="variant"><option value="harakat">full harakat</option><option value="selective">selective harakat</option><option value="plain">no harakat</option></select></span></h2><div class="msgs"></div></section>
+  <section class="col" data-side="1"><h2><span>B</span><span class="ctl"><input list="models" class="model"><select class="variant"><option value="harakat">full harakat</option><option value="selective">selective harakat</option><option value="plain">no harakat</option></select></span></h2><div class="msgs"></div></section>
+</main>
+<datalist id="models"></datalist>
+<footer>
+  <textarea id="input" placeholder="Reply as the patient… (Enter to send, Shift+Enter for a new line)" dir="auto"></textarea>
+  <button id="send">Send to both</button>
+</footer>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const cols = [...document.querySelectorAll('.col')];
+let cfg, histories = [[], []];
+const isAr = (t) => /[؀-ۿ]/.test(t);
+
+function bubble(side, cls, text, extra) {
+  const wrap = document.createElement('div');
+  const b = document.createElement('div');
+  b.className = `msg ${cls}`;
+  b.textContent = text;
+  b.dir = isAr(text) ? 'rtl' : 'ltr';
+  wrap.append(b);
+  if (extra) wrap.append(extra);
+  $('.msgs', cols[side]).append(wrap);
+  wrap.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  return wrap;
+}
+
+function meta(text, info) {
+  const m = document.createElement('div');
+  m.className = 'meta';
+  if (info) m.append(Object.assign(document.createElement('span'), { textContent: info }));
+  if (cfg.tts && text) {
+    const play = Object.assign(document.createElement('button'), { className: 'ghost', textContent: '▶ Play' });
+    play.onclick = async () => {
+      play.disabled = true; play.textContent = '…';
+      try {
+        const r = await fetch('/api/tts', { method: 'POST', body: JSON.stringify({ text, lang: $('#lang').value, role: $('#role').value }) });
+        if (!r.ok) throw new Error((await r.json()).error);
+        const audio = new Audio(URL.createObjectURL(await r.blob()));
+        audio.onended = () => { play.disabled = false; play.textContent = '▶ Play'; };
+        await audio.play(); play.textContent = '♪';
+      } catch (e) { play.textContent = 'TTS failed'; console.error(e); play.disabled = false; }
+    };
+    m.append(play);
+  }
+  m.append(Object.assign(document.createElement('span'), { textContent: `${text.length} chars` }));
+  return m;
+}
+
+function restart() {
+  cols.forEach((c, i) => {
+    const first = cfg.first[`${$('#role').value}|${$('#lang').value}|${$('#patient').value}|${$('.variant', c).value}`];
+    histories[i] = [{ role: 'assistant', content: first }];
+    $('.msgs', c).innerHTML = '';
+    bubble(i, 'bot', first, meta(first, 'first message (fixed)'));
+  });
+}
+
+async function sendAll() {
+  const text = $('#input').value.trim();
+  if (!text) return;
+  $('#input').value = '';
+  $('#send').disabled = true;
+  await Promise.all(cols.map(async (c, i) => {
+    const model = $('.model', c).value.trim();
+    histories[i].push({ role: 'user', content: text });
+    bubble(i, 'user', text);
+    const pending = bubble(i, 'bot', '…');
+    try {
+      const r = await fetch('/api/turn', { method: 'POST', body: JSON.stringify({ model, variant: $('.variant', c).value, role: $('#role').value, lang: $('#lang').value, patientId: $('#patient').value, history: histories[i] }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      pending.remove();
+      histories[i].push(...j.added);
+      for (const t of j.toolCalls) {
+        const d = document.createElement('div'); d.className = 'tool';
+        d.textContent = `🔧 ${t.name}(${JSON.stringify(t.args)})\n→ ${JSON.stringify(t.result)}`;
+        $('.msgs', c).append(d);
+      }
+      bubble(i, 'bot', j.reply, meta(j.reply, `${j.provider} · ${(j.firstMs / 1000).toFixed(1)}s first · ${(j.totalMs / 1000).toFixed(1)}s total`));
+    } catch (e) {
+      histories[i].pop();
+      pending.remove();
+      const d = document.createElement('div'); d.className = 'err'; d.textContent = e.message;
+      $('.msgs', c).append(d);
+    }
+  }));
+  $('#send').disabled = false;
+  $('#input').focus();
+}
+
+(async () => {
+  cfg = await (await fetch('/api/config')).json();
+  $('#patient').innerHTML = cfg.patients.map((p) => `<option value="${p.id}">${p.name} (${p.lang.toUpperCase()})</option>`).join('');
+  $('#models').innerHTML = cfg.choices.map((m) => `<option value="${m}">`).join('');
+  cols.forEach((c, i) => {
+    $('.model', c).value = cfg.models[i];
+    $('.variant', c).value = cfg.variants[i];
+    $('.variant', c).addEventListener('change', restart);
+  });
+  if (!cfg.ready) $('#status').textContent = 'GROQ_API_KEY is missing in .env';
+  ['patient', 'role', 'lang'].forEach((id) => $('#' + id).addEventListener('change', restart));
+  $('#reset').onclick = restart;
+  $('#send').onclick = sendAll;
+  $('#input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAll(); } });
+  restart();
+})();
+</script>
+</body>
+</html>

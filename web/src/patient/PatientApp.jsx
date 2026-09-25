@@ -19,7 +19,8 @@ const CHIPS = {
 };
 
 const TOOL_LABEL = {
-  book_appointment: (p) => `Booking ${p.specialty}…`,
+  propose_visit: (p) => `Proposing ${p.visit_type} — awaiting your confirmation`,
+  book_appointment: () => 'Appointment confirmed',
   submit_preauthorization: (p) => `Filing insurance pre-auth: ${p.procedure}…`,
   notify_care_team: (p) => `Alerting care team (${p.priority})…`,
   prepare_visit_summary: (p) => `Preparing visit sheet: ${p.specialty}…`,
@@ -55,7 +56,7 @@ export default function PatientApp() {
   const agent = useAgentSession({
     onMode: (mode) => setStatus(mode === 'speaking' ? 'Rafeeq is speaking. Talk anytime to interrupt.' : 'Listening…'),
     onStatus: (s, opts) => { if (s === 'connected') setStatus(opts.textOnly ? 'Connected (text mode).' : 'Connected. Just talk.'); },
-    onTool: (name, p) => { agent.addMsg('tool', (TOOL_LABEL[name] || (() => name))(p)); load(); },
+    onTool: (name, p, result) => { agent.addMsg('tool', result.blocked ? `Waiting for confirmation: ${result.say}` : (TOOL_LABEL[name] || (() => name))(p)); load(); },
     onEnd: async (transcript, opts) => {
       if (opts.gen !== gen.current) return;
       setStatus('Session ended. Writing the care-team note…');
