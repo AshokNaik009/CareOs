@@ -58,6 +58,6 @@ export default function LiveHeartRate() {
       <p>If WHOOP is missing or connects without readings, toggle Heart Rate Broadcast and disconnect other fitness apps or equipment receiving its broadcast, then try again. You do not need to remove your WHOOP phone pairing.</p>
       <p>Keep this page open. A sleeping Mac, background tab or out-of-range sensor can interrupt readings. Values disappear after 10 seconds without a new packet; reconnect manually after a lost connection. To stop broadcasting entirely, turn Heart Rate Broadcast off in the WHOOP app.</p>
     </details>
-    <p className="small muted">Live heart rate is not resting heart rate or HRV. It does not change your daily analysis, recovery status or health flags. This is not a medical monitor.</p>
+    <p className="small muted"><strong>Real sensor only. Never mocked.</strong> No REST response, sample metric or saved value is used for live BPM. Live heart rate is not resting heart rate or HRV. It does not change your daily analysis, recovery status or health flags. This is not a medical monitor.</p>
   </section>;
 }

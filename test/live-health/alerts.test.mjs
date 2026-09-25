@@ -24,6 +24,18 @@ function serviceHarness(options = {}) {
   return { service, session, sessions, calls, setData: value => { data = value; } };
 }
 
+test('mock sessions cannot enter the alert service even with tokens and enabled preferences', async () => {
+  let reads = 0;
+  const h = serviceHarness({ whoop: { data: async () => { reads++; return fixture(); } } });
+  h.session.sample = true;
+  await assert.rejects(h.service.save(h.session, preferences()), error => error.status === 403);
+  h.session.alerts = { preferences: preferences(), armedAt: clock - 120000, events: [] };
+  await h.service.check(h.session);
+  h.service.handleWhoop({ user_id: 42, type: 'recovery.updated', id: 'sleep-1', trace_id: 'sample-event' });
+  assert.equal(reads, 0);
+  assert.equal(h.calls.length, 0);
+});
+
 test('preferences require supported rules, explicit consent and valid contacts', () => {
   assert.deepEqual(validatePreferences(preferences()), preferences());
   for (const change of [{ rules: { high_blood_pressure: 140 } }, { rules: { high_resting_hr: '90' } }, { rules: { low_spo2: 101 } }, { rules: {} }, { consent: false }, { contact: { name: 'Sam', phone: '911' } }, { patientName: '' }, { enabled: 'yes' }]) {

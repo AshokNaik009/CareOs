@@ -45,14 +45,14 @@ export default function LiveHealthApp() {
     const controller = new AbortController();
     setBusy(true);
     setError('');
-    setReport(null);
+    if (!session.sample) setReport(null);
     setCopyState('Copy JSON');
     api('/api/report', { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timeZone, profile: { ...profile, age: profile.age === '' ? null : Number(profile.age) } }) })
       .then(data => { if (!controller.signal.aborted) setReport(data); })
       .catch(e => { if (!controller.signal.aborted && e.name !== 'AbortError') { setError(e.message); if (e.status === 401) setSession(s => ({ ...s, connected: false })); } })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
-  }, [session?.connected, profile, attempt]);
+  }, [session?.connected, session?.sample, profile, attempt]);
 
   async function disconnect() {
     if (session?.sample) return logout();
@@ -68,8 +68,10 @@ export default function LiveHealthApp() {
     catch (e) { setError(e.message); }
   }
 
+  const analysisExport = report?.sample ? { source: 'mock_rest', sample: true, analysis: report.analysis } : report?.analysis;
+
   async function copyJson() {
-    try { await navigator.clipboard.writeText(JSON.stringify(report.analysis, null, 2)); setCopyState('Copied'); }
+    try { await navigator.clipboard.writeText(JSON.stringify(analysisExport, null, 2)); setCopyState('Copied'); }
     catch { setCopyState('Select and copy the JSON below'); }
   }
 
@@ -77,7 +79,7 @@ export default function LiveHealthApp() {
   const status = report?.analysis.recovery_status;
   return <>
     <TopBar active="live-health" brand={<>Rafeeq <span className="ar">رفيق</span> <small>Live health</small></>}>
-      <span className="demo-note">{session?.sample ? 'Sample data' : session?.connected ? 'WHOOP connected' : session ? 'Not connected' : 'Checking connection'}</span>
+      <span className="demo-note">{session?.sample ? 'WHOOP demo connected' : session?.connected ? 'WHOOP connected' : session ? 'Not connected' : 'Checking connection'}</span>
     </TopBar>
     <main className="page lh-page" id="overview">
       <header className="lh-heading">
@@ -86,21 +88,24 @@ export default function LiveHealthApp() {
           <h1 className="display">Your day, <br /><span>in perspective.</span></h1>
           <p className="muted">Your body’s signals. Your personal baseline. A little more clarity.</p>
         </div>
-        {session?.connected && <button className="btn primary" disabled={busy} onClick={() => setAttempt(v => v + 1)}>{busy ? 'Syncing…' : session.sample ? 'Refresh sample' : 'Sync WHOOP'}</button>}
+        {session?.connected && <div className="lh-actions">
+          {session.sample && <span className="lh-demo-connected" aria-label="WHOOP demo connection"><strong>Connected · Demo</strong><small>WHOOP-shaped mock REST data · No account linked</small></span>}
+          <button className="btn primary" disabled={busy} onClick={() => setAttempt(v => v + 1)}>{busy ? 'Syncing…' : session.sample ? 'Refresh mock metrics' : 'Sync WHOOP'}</button>
+        </div>}
       </header>
       <nav className="lh-section-nav" aria-label="Health sections">
         <a href="#overview">Overview</a><a href="#live-heart-rate">Live heart rate</a><a href="#baseline">Your baseline</a><a href="#method">How it works</a><a href="#emergency-alerts">Your circle of care</a>
-        <span>{session?.sample ? 'Sample data · Not your readings' : 'Personal data · Not a demo'}</span>
+        <span>{session?.sample ? 'REST: mock · Live HR: real sensor only' : 'Personal data · Not a demo'}</span>
       </nav>
-      {session?.sample && <div className="lh-message lh-sample" role="status"><p><strong>Sample data — not your readings.</strong> Generated for demonstration only. Contact alerts and calls are turned off in sample mode.</p><button className="btn sm" onClick={logout}>Exit sample mode</button></div>}
+      {session?.sample && <div className="lh-message lh-sample" role="status"><p><strong>REST metrics are mock data.</strong> Recovery, sleep, HRV, resting heart rate and history are demonstration values, not your readings. <strong>Live heart rate is real Bluetooth data only</strong> and stays blank until your sensor sends a reading. Mock data cannot trigger emergency calls.</p></div>}
       {error && <div className="lh-message lh-error" role="alert"><p>{error}</p><button className="btn sm" onClick={() => { setError(''); setAttempt(v => v + 1); }}>Try again</button></div>}
       {busy && <div className="lh-message" role="status">Reading your history and calculating personal baselines…</div>}
       {report ? <section className={`card lh-brief lh-status-${status ?? 'unknown'}`}>
         <div>
-          <p className="label">Your daily brief</p>
-          <h2 className="lh-display-title">{report.analysis.health_flag ? 'A little extra care today.' : status === null ? 'Waiting for today’s picture.' : report.analysis.trends.hrv === 'down' || report.analysis.trends.sleep === 'declining' || report.analysis.trends.resting_hr === 'up' ? 'Make room for recovery.' : 'Let your own baseline guide you.'}</h2>
+          <p className="label">{report.sample ? 'Mock REST daily brief · Demonstration only' : 'Your daily brief'}</p>
+          <h2 className="lh-display-title">{report.sample ? 'An example of your daily brief.' : report.analysis.health_flag ? 'A little extra care today.' : status === null ? 'Waiting for today’s picture.' : report.analysis.trends.hrv === 'down' || report.analysis.trends.sleep === 'declining' || report.analysis.trends.resting_hr === 'up' ? 'Make room for recovery.' : 'Let your own baseline guide you.'}</h2>
           <p>{report.analysis.summary}</p>
-          <p className="label">{report.sample ? 'Sample data · ' : ''}Local rules · Synced {new Date(report.fetched_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {timeZone}</p>
+          <p className="label">{report.sample ? 'Mock REST data · ' : ''}Local rules · Synced {new Date(report.fetched_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {timeZone}</p>
         </div>
         <div className="lh-recovery">
           <strong>{fmt(report.current?.recovery)}{report.current?.recovery != null && <small>%</small>}</strong>
@@ -124,7 +129,7 @@ export default function LiveHealthApp() {
           <p className="small muted">Read-only health access. Disconnect whenever you choose.</p>
         </div>
       </section>}
-      {session && !session.configured && <section className="card lh-setup"><details open>
+      {session && !session.configured && !session.sample && <section className="card lh-setup"><details open>
         <summary>Connect your WHOOP developer app</summary>
         <ol>
           <li>Create an app in the <a href="https://developer-dashboard.whoop.com/" target="_blank" rel="noreferrer">WHOOP Developer Dashboard</a>.</li>
@@ -134,7 +139,7 @@ export default function LiveHealthApp() {
           <li>Production requires an HTTPS origin behind a TLS proxy and <code>NODE_ENV=production</code>. The existing patient/provider demos still require separate access controls before public deployment.</li>
         </ol>
       </details></section>}
-      <LiveHeartRate key={session?.connected ? 'signed-in' : 'signed-out'} />
+      <LiveHeartRate key={session?.connected && !session.sample ? 'signed-in' : 'sensor-only'} />
       <MetricCards report={report} />
       {report?.analysis.health_flag && <section className="card lh-health-flag" role="alert"><h2>A pattern worth checking</h2><p>{report.analysis.health_flag}</p></section>}
       {report && <>
@@ -146,7 +151,7 @@ export default function LiveHealthApp() {
         <SleepAndWorkouts report={report} />
         <Baselines report={report} />
       </>}
-      {!report && <section className="card lh-empty" id="baseline"><h2>Your history tells the story.</h2><p>Compare today with your own 7-day and 30-day averages. Missing readings stay missing, and trends only appear when there’s enough history.</p><span className="tag">{session?.sampleAvailable ? 'Sample data is opt-in and labelled' : 'No sample readings'}</span></section>}
+      {!report && <section className="card lh-empty" id="baseline"><h2>Your history tells the story.</h2><p>Compare today with your own 7-day and 30-day averages. Missing readings stay missing, and trends only appear when there’s enough history.</p><span className="tag">{session?.sampleAvailable ? 'Mock REST data · Clearly labelled' : 'No sample readings'}</span></section>}
       <section className="card lh-profile">
         <div><h2>What are you working toward?</h2><p className="muted">Your goal shapes the guidance, not the measurements.</p></div>
         <div className="lh-profile-fields">
@@ -158,13 +163,11 @@ export default function LiveHealthApp() {
         </div>
       </section>
       <Methodology />
-      <EmergencyAlerts key={session?.connected && !session.sample ? 'alerts-connected' : 'alerts-disconnected'} connected={Boolean(session?.connected && !session.sample)} api={api} />
-      {report && <section className="card lh-json"><details><summary>View structured analysis JSON</summary><div className="lh-actions"><span className="label">Exact analysis schema · Unknown values are null</span><button className="btn sm" onClick={copyJson}>{copyState}</button></div><pre>{JSON.stringify(report.analysis, null, 2)}</pre></details></section>}
+      <EmergencyAlerts key={session?.connected && !session.sample ? 'alerts-connected' : 'alerts-disconnected'} connected={Boolean(session?.connected && !session.sample)} mockRest={Boolean(session?.sample)} api={api} />
+      {report && <section className="card lh-json"><details><summary>View structured analysis JSON</summary><div className="lh-actions"><span className="label">{report.sample ? 'Mock REST export · Not personal health data' : 'Exact analysis schema · Unknown values are null'}</span><button className="btn sm" onClick={copyJson}>{copyState}</button></div><pre>{JSON.stringify(analysisExport, null, 2)}</pre></details></section>}
       <footer className="lh-footer">
         <span className="label">Rafeeq Live Health · Independent wellness companion. Not affiliated with WHOOP.</span>
-        {session?.connected && (session.sample
-          ? <div className="lh-actions"><button className="btn sm" onClick={logout}>Exit sample mode</button></div>
-          : <div className="lh-actions"><button className="btn sm" onClick={logout}>Sign out</button><button className="btn sm danger" disabled={disconnecting} onClick={disconnect}>{disconnecting ? 'Disconnecting…' : 'Disconnect WHOOP'}</button></div>)}
+        {session?.connected && !session.sample && <div className="lh-actions"><button className="btn sm" onClick={logout}>Sign out</button><button className="btn sm danger" disabled={disconnecting} onClick={disconnect}>{disconnecting ? 'Disconnecting…' : 'Disconnect WHOOP'}</button></div>}
         <p>Not medical advice. Listen to your body, not just your wearable. Your readings are not shared with the demo’s AI agents or provider feed. If you enable contact alerts, matched readings and the AI conversation are processed by Twilio and ElevenLabs and shared with your chosen contact. <a href="/privacy">Privacy policy</a>.</p>
       </footer>
     </main>

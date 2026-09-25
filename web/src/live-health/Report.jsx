@@ -18,7 +18,7 @@ export function MetricCards({ report }) {
     const trendKey = { hrv: 'hrv', resting_hr: 'resting_hr', sleep_hours: 'sleep' }[metric];
     const trend = report?.analysis.trends[trendKey];
     return <article className="card lh-metric" key={metric}>
-      <h2>{label}</h2>
+      <h2>{label} {report?.sample && <span className="source">Mock REST</span>}</h2>
       <div className="lh-metric-value">{fmt(current)} <span>{current != null ? unit : ''}</span></div>
       <p className="small muted">{trend ? `Recent trend: ${trend}` : current == null ? 'Awaiting your data' : !trendKey ? 'Current cycle; may be in progress' : 'More history needed for a trend'}</p>
       <div className="lh-averages">{[['week', '7d'], ['month', '30d']].map(([key, title]) => <span key={key} title={`${baselines?.[key].count ?? 0} recorded days; today excluded`}>{title} avg <strong>{fmt(baselines?.[key].average)}</strong></span>)}</div>
@@ -49,7 +49,7 @@ export function HistoryChart({ report }) {
   });
   if (segment.length) segments.push(segment);
   return <section className="card" id="history">
-    <h2>Your personal rhythm <span className="source">The bigger picture</span></h2>
+    <h2>Your personal rhythm <span className="source">{report.sample ? 'Mock REST history' : 'The bigger picture'}</span></h2>
     <div className="lh-chart-controls">
       <label>Metric <select value={metric} onChange={event => setMetric(event.target.value)}><option value="hrv">Heart rate variability</option><option value="resting_hr">Resting heart rate</option><option value="sleep_hours">Sleep duration</option><option value="recovery">Recovery</option></select></label>
       <div className="lh-actions" aria-label="Chart period">{[7, 30].map(value => <button className={`btn sm${window === value ? ' primary' : ''}`} key={value} aria-pressed={window === value} onClick={() => setWindow(value)}>{value} days</button>)}</div>
@@ -67,7 +67,7 @@ export function HistoryChart({ report }) {
 
 export function Baselines({ report }) {
   return <section className="card" id="baseline">
-    <h2>Your baseline <span className="source">You, compared with you</span></h2>
+    <h2>Your baseline <span className="source">{report.sample ? 'Mock REST baselines' : 'You, compared with you'}</span></h2>
     <p className="muted">Averages use recorded days before today. Partial windows show their actual coverage; missing readings are never zeroes.</p>
     <div className="lh-table-scroll"><table><thead><tr><th>Metric</th><th>Today</th><th>7-day average</th><th>30-day average</th></tr></thead><tbody>{Object.entries(metricInfo).map(([key, [label, unit]]) => <tr key={key}>
       <th scope="row">{label}{key === 'strain' && <small>Current cycle may still be in progress</small>}</th>
@@ -83,12 +83,12 @@ export function SleepAndWorkouts({ report }) {
   let offset = 0;
   const workouts = report.current?.workouts ?? [];
   return <div className="lh-columns"><section className="card">
-    <h2>The shape of your sleep <span className="source">Last night</span></h2>
+    <h2>The shape of your sleep <span className="source">{report.sample ? 'Mock REST sleep' : 'Last night'}</span></h2>
     <p className="lh-sleep-total">{duration(report.current?.sleep_hours)} <span className="small muted">asleep, excluding awake time</span></p>
     {total > 0 && <svg className="lh-sleep-bar" viewBox="0 0 400 16" role="img" aria-label="Sleep stages; durations listed below">{Object.entries(stages).map(([key, value]) => { const start = offset; offset += value / total * 400; return <rect key={key} className={`lh-stage-${key}`} x={start} y="0" height="16" width={value / total * 400} />; })}</svg>}
     <div className="lh-stage-legend">{[['light', 'Light'], ['deep', 'Deep'], ['rem', 'REM (dream sleep)'], ['awake', 'Awake']].map(([key, label]) => <div key={key}><span className={`lh-stage-dot lh-stage-${key}`} /><span>{label}</span><strong>{duration(stages?.[key])}</strong></div>)}</div>
   </section><section className="card">
-    <h2>Your activity <span className="source">Today’s movement</span></h2>
+    <h2>Your activity <span className="source">{report.sample ? 'Mock REST activity' : 'Today’s movement'}</span></h2>
     {workouts.length ? <div>{workouts.map(workout => <article className="lh-workout" key={workout.id}><div className="lh-workout-heading"><h3>{workout.sport}</h3><span>{fmt(workout.duration_minutes)} min</span></div><p>Workout strain: {fmt(workout.strain)}</p><details><summary>Heart-rate zones</summary><p className="muted">Time in the intensity zones reported by WHOOP. Higher zones mean higher heart rate.</p><ul>{Object.entries(workout.zones).map(([zone, hours]) => <li key={zone}>Zone {zone}: {duration(hours)}</li>)}</ul></details></article>)}</div> : <p className="muted">No workouts available for today. This does not necessarily mean you were inactive.</p>}
   </section></div>;
 }
