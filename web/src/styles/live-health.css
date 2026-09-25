@@ -22,6 +22,7 @@
 .lh-message { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; background: var(--paper); border: 1.5px solid var(--ink); padding: 12px 18px; margin-top: 20px; }
 .lh-message p { margin: 0; }
 .lh-error, .lh-health-flag { border-left: 6px solid var(--red); }
+.lh-sample { border-left: 6px solid var(--loam); }
 .lh-welcome, .lh-brief { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 36px; padding: 30px; }
 .lh-welcome { background: var(--loam); color: var(--cream); }
 .lh-welcome .label { color: rgba(231, 226, 216, .65); }

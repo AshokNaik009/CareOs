@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     port: 5173,
-    proxy: Object.fromEntries(['/api', '/live-health/api', '/live-health/auth', '/live-health/webhooks', '/retell/webhook'].map((prefix) => [prefix, {
+    proxy: Object.fromEntries(['/api', '/live-health/api', '/live-health/auth', '/live-health/webhooks'].map((prefix) => [prefix, {
       target: `http://127.0.0.1:${process.env.PORT || loadEnv(mode, __dirname, 'PORT').PORT || 3000}`, changeOrigin: true,
     }])),
   },
