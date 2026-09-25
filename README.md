@@ -2,6 +2,8 @@
 
 **A personal health agent connected to a provider Care OS.** Built for Abu Dhabi's health system, Rafeeq turns fragmented health information into coordinated follow-up: spot a missed finding, explain it to the patient, arrange the next step, and update the care team live.
 
+**Live demo:** [rafeeq-fgsm.onrender.com](https://rafeeq-fgsm.onrender.com/). Open the [patient agent](https://rafeeq-fgsm.onrender.com/patient.html), the [Care OS](https://rafeeq-fgsm.onrender.com/provider.html) or [Live Health](https://rafeeq-fgsm.onrender.com/live-health). It runs on Render's free plan, so the first visit after a quiet period can take up to a minute while the server wakes up.
+
 The repository is named **CareOs**; the application is **Rafeeq**. It combines a patient-facing Arabic/English assistant with a dashboard for a provider paid a fixed amount per member per month, illustrating how proactive care could reduce avoidable admissions.
 
 > The patient-agent and provider-demo records are synthetic. Their bookings, pre-authorisations and care-team notifications are simulated; admission risks and savings are illustrative. The separate **Live Health** module can connect to your real WHOOP account and a nearby Bluetooth heart-rate sensor. Its data is not shared with the demos or AI providers. Neither experience is medical advice or a production clinical system.
@@ -40,11 +42,22 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 
 - A synthetic diabetes and heart-failure panel ranked by an illustrative risk score.
 - Pre-call briefs and post-conversation notes generated through optional text-LLM providers, with deterministic templates when those providers are unavailable.
-- An Arabic/English outreach agent, **Noor**, with tools to schedule visits, log outcomes and escalate to a nurse.
+- An Arabic/English outreach agent, **Salem**, with tools to schedule visits, log outcomes and escalate to a nurse.
 - Contract and cost charts for an illustrative **1,240-member** contract; the interactive worklist contains **40 sample members**, not the entire contract population.
 - A shared Server-Sent Events (SSE) feed connects both apps. Fatima belongs to both experiences, so her patient-agent actions appear in the provider feed and can update her worklist status and session savings.
 
 ### Live Health
+
+**Your day, in perspective.** Live Health turns your own WHOOP recovery, sleep and strain into a clear daily brief, measured against your personal history rather than population averages. Unlike the patient and provider demos, it uses your real data. Try it at [rafeeq-fgsm.onrender.com/live-health](https://rafeeq-fgsm.onrender.com/live-health).
+
+![Live Health: connect WHOOP for a daily brief, and pair a sensor for live heart rate](docs/images/live-health.png)
+
+- **Connect WHOOP:** read-only access to recovery, sleep, cycles and workouts. Disconnect at any time.
+- **Overview:** today's recovery guidance, explained in plain language.
+- **Your baseline:** 7- and 30-day personal baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones.
+- **Live heart rate:** turn on Heart Rate Broadcast in the WHOOP app, then pair your WHOOP (or any Bluetooth heart-rate sensor) to see beats per minute in real time, straight from the sensor rather than the WHOOP cloud.
+- **How it works:** the full methodology, plus the analysis as copyable JSON.
+- **Private by design:** analysis runs on the server with no AI provider or API key involved. Live heart rate stays in your browser; it is never saved or uploaded.
 
 The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Missing readings remain missing; there are no user-facing sample readings or LLM calls.
 
@@ -65,7 +78,7 @@ Module endpoints are under `/live-health`: `GET /api/session`, `GET /auth/whoop`
 
 1. **Landing (`/`)** tells the story (*the record already knew; nobody acted on it*) and links to both apps.
 2. **Patient agent (`/patient.html`)**: Fatima's record is loaded, and the safety-net rules list what was missed, each with its evidence. She talks to Rafeeq by voice or text. Rafeeq explains a finding and, with her consent, acts: it books the visit, files the pre-authorisation, alerts the care team or prepares a visit sheet. Each action appears under **Done on your behalf** and marks the finding **✓ Handled**. When the session ends, an AI note is written for the care team.
-3. **Care OS (`/provider.html`)**: the provider sees contract economics and a worklist ranked by admission risk. Fatima is on it, tagged *has Rafeeq*. Selecting a member produces an AI pre-call brief. **Call** starts the outreach agent Noor, played by you as the member. Noor can book a visit, log the outcome or escalate to a nurse. When the call ends, a clinical note is written, the member's status changes, and the session-savings KPI updates.
+3. **Care OS (`/provider.html`)**: the provider sees contract economics and a worklist ranked by admission risk. Fatima is on it, tagged *has Rafeeq*. Selecting a member produces an AI pre-call brief. **Call** starts the outreach agent Salem, played by you as the member. Salem can book a visit, log the outcome or escalate to a nurse. When the call ends, a clinical note is written, the member's status changes, and the session-savings KPI updates.
 
 ### How a conversation turns into an action
 
