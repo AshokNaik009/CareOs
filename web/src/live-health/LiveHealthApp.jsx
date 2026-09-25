@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import TopBar from '../shared/components/TopBar.jsx';
 import LiveHeartRate from './LiveHeartRate.jsx';
 import Methodology from './Methodology.jsx';
+import EmergencyAlerts from './EmergencyAlerts.jsx';
 import { Baselines, HistoryChart, MetricCards, SleepAndWorkouts, fmt } from './Report.jsx';
 
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -87,7 +88,7 @@ export default function LiveHealthApp() {
         {session?.connected && <button className="btn primary" disabled={busy} onClick={() => setAttempt(v => v + 1)}>{busy ? 'Syncing…' : 'Sync WHOOP'}</button>}
       </header>
       <nav className="lh-section-nav" aria-label="Health sections">
-        <a href="#overview">Overview</a><a href="#live-heart-rate">Live heart rate</a><a href="#baseline">Your baseline</a><a href="#method">How it works</a>
+        <a href="#overview">Overview</a><a href="#live-heart-rate">Live heart rate</a><a href="#baseline">Your baseline</a><a href="#method">How it works</a><a href="#emergency-alerts">Your circle of care</a>
         <span>Personal data · Not a demo</span>
       </nav>
       {error && <div className="lh-message lh-error" role="alert"><p>{error}</p><button className="btn sm" onClick={() => { setError(''); setAttempt(v => v + 1); }}>Try again</button></div>}
@@ -154,11 +155,12 @@ export default function LiveHealthApp() {
         </div>
       </section>
       <Methodology />
+      <EmergencyAlerts key={session?.connected ? 'alerts-connected' : 'alerts-disconnected'} connected={Boolean(session?.connected)} api={api} />
       {report && <section className="card lh-json"><details><summary>View structured analysis JSON</summary><div className="lh-actions"><span className="label">Exact analysis schema · Unknown values are null</span><button className="btn sm" onClick={copyJson}>{copyState}</button></div><pre>{JSON.stringify(report.analysis, null, 2)}</pre></details></section>}
       <footer className="lh-footer">
         <span className="label">Rafeeq Live Health · Independent wellness companion. Not affiliated with WHOOP.</span>
         {session?.connected && <div className="lh-actions"><button className="btn sm" onClick={logout}>Sign out</button><button className="btn sm danger" disabled={disconnecting} onClick={disconnect}>{disconnecting ? 'Disconnecting…' : 'Disconnect WHOOP'}</button></div>}
-        <p>Not medical advice. Listen to your body, not just your wearable. Your readings are not shared with the demo’s AI agents or provider feed.</p>
+        <p>Not medical advice. Listen to your body, not just your wearable. Your readings are not shared with the demo’s AI agents or provider feed. If you enable contact alerts, matched readings are shared with Retell AI and your chosen contact. <a href="/privacy">Privacy policy</a>.</p>
       </footer>
     </main>
   </>;

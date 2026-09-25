@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { buildReport, shiftDate } from '../../../lib/live-health/analysis.mjs';
+import { emptyPreferences } from '../../../lib/live-health/alert-rules.mjs';
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/live-health/api/alerts', route => route.fulfill({ json: { ready: false, preferences: emptyPreferences(), events: [], expiresAt: '2026-09-26T08:00:00Z' } }));
+});
 
 const date = '2026-09-25';
 const fixture = () => ({
@@ -51,7 +56,7 @@ test('connected dashboard shows baselines, trends, chart, and exact JSON', async
   await page.getByRole('combobox', { name: 'Metric', exact: true }).selectOption('sleep_hours');
   await expect(page.getByRole('img', { name: /Sleep duration over the last 7 days/ })).toBeVisible();
   await page.getByText('View structured analysis JSON', { exact: true }).click();
-  expect(JSON.parse(await page.locator('pre').innerText())).toEqual(fixture().analysis);
+  expect(JSON.parse(await page.locator('.lh-json pre').innerText())).toEqual(fixture().analysis);
   expect(errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('connected-desktop.png'), fullPage: true });
 });
@@ -92,7 +97,7 @@ test('missing recovery is not shown as green or stable', async ({ page }) => {
   await expect(page.getByText('Not scored', { exact: true })).toBeVisible();
   await expect(page.getByText('Recent trend: stable')).not.toBeVisible();
   await page.getByText('View structured analysis JSON', { exact: true }).click();
-  expect(JSON.parse(await page.locator('pre').innerText()).trends.hrv).toBeNull();
+  expect(JSON.parse(await page.locator('.lh-json pre').innerText()).trends.hrv).toBeNull();
 });
 
 test('concerning patterns render doctor guidance prominently', async ({ page }) => {

@@ -4,7 +4,7 @@
 
 The repository is named **CareOs**; the application is **Rafeeq**. It combines a patient-facing Arabic/English assistant with a dashboard for a provider paid a fixed amount per member per month, illustrating how proactive care could reduce avoidable admissions.
 
-> The patient-agent and provider-demo records are synthetic. Their bookings, pre-authorisations and care-team notifications are simulated; admission risks and savings are illustrative. The separate **Live Health** module can connect to your real WHOOP account and a nearby Bluetooth heart-rate sensor. Its data is not shared with the demos or AI providers. Neither experience is medical advice or a production clinical system.
+> The patient-agent and provider-demo records are synthetic. Their bookings, pre-authorisations and care-team notifications are simulated; admission risks and savings are illustrative. The separate **Live Health** module can connect to your real WHOOP account and a nearby Bluetooth heart-rate sensor. Its data is not shared with the demos. Optional, explicitly consented contact alerts share matched readings and contact details with Retell AI to place a wellness check-in call. Neither experience is medical advice or a production clinical system.
 
 ## Who it's for
 
@@ -46,7 +46,7 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 
 ### Live Health
 
-The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Missing readings remain missing; there are no user-facing sample readings or LLM calls.
+The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Missing readings remain missing; there are no user-facing sample readings, and daily analysis does not use an LLM. The optional **Your circle of care** section after the methodology supports illustrated, selectable WHOOP alerts and consented Retell calls to an approved emergency contact. Blood pressure and abnormal-rhythm tiles are disabled because those readings are not in WHOOP’s public API. Alerts are session-only, not an emergency service; setup instructions and the Retell agent prompt are in that section. Calling is disabled by default.
 
 Configure `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, and `APP_ORIGIN` in the server environment or local `.env`. Do not copy credentials into frontend code or commit them. Register **`APP_ORIGIN/live-health/auth/whoop/callback`** in your WHOOP developer app.
 
