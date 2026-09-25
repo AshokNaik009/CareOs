@@ -48,7 +48,7 @@ export default function ProviderApp() {
   }, []);
 
   const agent = useAgentSession({
-    onMode: (mode) => setStatus(mode === 'speaking' ? 'Noor is speaking…' : 'Listening to member…'),
+    onMode: (mode) => setStatus(mode === 'speaking' ? 'Salem is speaking…' : 'Listening to member…'),
     onStatus: (s, opts) => { if (s === 'connected') setStatus(opts.textOnly ? 'Connected (text simulation). Reply as the member.' : 'Connected. Answer as the member.'); },
     onTool: (name, p, result) => agent.addMsg('tool', result.blocked ? `Waiting for confirmation: ${result.say}` : (TOOL_LABEL[name] || (() => name))(p)),
     onEnd: async (transcript, opts) => {
@@ -78,6 +78,7 @@ export default function ProviderApp() {
     if (agent.busy()) return; // keep the call focused
     gen.current++;
     setSelected(id);
+    history.replaceState(null, '', `?${new URLSearchParams({ m: id })}`);
     agent.clear();
     setNote(null);
     setStatus(null);
@@ -94,7 +95,7 @@ export default function ProviderApp() {
     setStatus(`Placing phone call to ${phoneTo}…`);
     try {
       const r = await api.post('/api/phone-call', { id: selected, lang });
-      if (g === gen.current) setStatus(`Ringing ${r.to} from ${r.from}. ${lang === 'ar' ? 'Salem' : 'Noor'} speaks when answered.`);
+      if (g === gen.current) setStatus(`Ringing ${r.to} from ${r.from}. Salem speaks when answered.`);
     } catch (e) {
       if (g === gen.current) setStatus(`Phone call failed: ${e.message}`);
     } finally {
@@ -143,7 +144,8 @@ export default function ProviderApp() {
   useEffect(() => {
     refresh().then((p) => {
       const pre = new URLSearchParams(location.search).get('m');
-      if (pre && p.members.some((m) => m.id === pre)) selectRef.current(pre);
+      const first = p.members.find((m) => m.id === pre) || p.members.find((m) => m.id === 'P-1001') || p.members[0];
+      if (first) selectRef.current(first.id);
     }).catch((e) => console.error(e));
     return () => clearTimeout(refreshTimer.current);
   }, [refresh, selectRef]);
@@ -176,13 +178,19 @@ export default function ProviderApp() {
   const member = pop && selected ? pop.members.find((m) => m.id === selected) : null;
   return (
     <>
-      <TopBar active="provider" brand={<>Rafeeq <span className="mark">Care</span> <small>Risk-bearing care OS</small></>}>
+      <TopBar active="provider" contextId={selected || 'P-1001'} brand={<>Rafeeq <span className="mark">Care</span> <small>Risk-bearing care OS</small></>}>
         <span className="demo-note">{c ? `${c.payer} · ${c.cohort} · ${c.label}` : ''}</span>
         <ResetButton />
       </TopBar>
       <Banner text={banner} />
 
       <main className="page">
+        <section className="journey" aria-label="Care team demo journey">
+          <div><span className="source">02 · Care-team impact</span><h1>One patient action. A connected care team.</h1><p>{member ? `${member.name} is selected. ` : ''}Review live signals and the worklist, then simulate outreach. End the call to generate the clinical note.</p></div>
+          <a className="btn" href="/patient.html?p=P-1001&lang=en">Back to patient experience</a>
+          <div className="journey-steps"><span>1 · Shared patient signals</span><span>2 · Prioritised outreach</span><span>3 · Clinical handoff</span><span>4 · Illustrative savings</span></div>
+          <small className="muted">Synthetic 40-member sample · Simulated bookings · Savings are modelled, not realised.</small>
+        </section>
         {pop ? <Kpis contract={pop.contract} kpis={pop.kpis} /> : <div className="kpis"></div>}
 
         <div className="grid-2">
