@@ -4,7 +4,7 @@
 
 The repository is named **CareOs**; the application is **Rafeeq**. It combines a patient-facing Arabic/English assistant with a dashboard for a provider paid a fixed amount per member per month, illustrating how proactive care could reduce avoidable admissions.
 
-> All patient records are synthetic. Healthcare integrations, bookings, pre-authorisations and care-team notifications are simulated. Admission risks and savings are illustrative, not clinically validated predictions or measured outcomes. This is not medical advice or a production clinical system.
+> The patient-agent and provider-demo records are synthetic. Their bookings, pre-authorisations and care-team notifications are simulated; admission risks and savings are illustrative. The separate **Live Health** module can connect to your real WHOOP account and a nearby Bluetooth heart-rate sensor. Its data is not shared with the demos or AI providers. Neither experience is medical advice or a production clinical system.
 
 ## Who it's for
 
@@ -27,6 +27,7 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 | Landing page | `/` | Scroll-based product pitch and explanation of the care model. |
 | Patient agent | `/patient.html` | Review a synthetic health record, genome report and wearable signals; discuss findings by voice or text in Arabic or English; request follow-up actions. |
 | Provider Care OS | `/provider.html` | Prioritise a 40-member sample panel, review pre-call briefs, simulate care-coordinator outreach, and follow actions and estimated savings live. |
+| Live Health | `/live-health` | Connect WHOOP, review personal baselines and daily reports, and receive browser-only live Bluetooth heart rate. |
 
 ### Patient agent
 
@@ -42,6 +43,21 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 - An Arabic/English outreach agent, **Noor**, with tools to schedule visits, log outcomes and escalate to a nurse.
 - Contract and cost charts for an illustrative **1,240-member** contract; the interactive worklist contains **40 sample members**, not the entire contract population.
 - A shared Server-Sent Events (SSE) feed connects both apps. Fatima belongs to both experiences, so her patient-agent actions appear in the provider feed and can update her worklist status and session savings.
+
+### Live Health
+
+The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Missing readings remain missing; there are no user-facing sample readings or LLM calls.
+
+Configure `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, and `APP_ORIGIN` in the server environment or local `.env`. Do not copy credentials into frontend code or commit them. Register **`APP_ORIGIN/live-health/auth/whoop/callback`** in your WHOOP developer app.
+
+- Built app (`npm start`): `APP_ORIGIN=http://localhost:3000`; open `http://localhost:3000/live-health`.
+- Hot reload: run `APP_ORIGIN=http://localhost:5173 npm run dev`; open `http://localhost:5173/live-health`. Vite proxies the module's API and OAuth routes to Node. Match the origin exactly, including scheme, host and port.
+- Deployment: set `NODE_ENV=production` and an HTTPS `APP_ORIGIN` behind a TLS proxy. Live Health refuses an insecure production origin. The other demo APIs remain unauthenticated; do not expose the whole app publicly without access controls.
+- Bluetooth works independently of OAuth: enable WHOOP **Heart Rate Broadcast**, then use Chrome or Edge on HTTPS/localhost and choose your sensor explicitly. Values are browser-only, clear after 10 seconds without fresh packets, and never feed into recovery analysis or health flags.
+- Sessions are isolated per browser with HttpOnly, module-scoped cookies and same-origin POST checks. Tokens and cached cloud data are held in memory, with one-day session expiry and a one-minute response cache. Restarting signs users out; multi-instance hosting needs a secure shared session store and coordinated refreshes.
+- Demo reset and the provider SSE feed do not access Live Health data. Sign out clears the local session; **Disconnect WHOOP** also revokes remote access after confirmation.
+
+Module endpoints are under `/live-health`: `GET /api/session`, `GET /auth/whoop`, `GET /auth/whoop/callback`, and `POST /api/report`, `/api/analysis`, `/api/logout`, `/api/disconnect`. Reports require authentication, a same-origin `Origin` header and JSON containing `timeZone` with optional `profile` (`age`, `sex`, `goal`).
 
 ## How it fits together
 
@@ -77,8 +93,8 @@ Fatima (`P-1001`) is both a patient-agent user and a Care OS member. Anything he
 
 ## Tech stack
 
-- **Backend:** Node.js, CommonJS modules and the built-in HTTP server; no web framework or database.
-- **Frontend:** React 19 + Vite 6 (JavaScript/JSX), built as three pages: `/`, `/patient.html`, `/provider.html`.
+- **Backend:** Node.js built-in HTTP server and CommonJS demo modules; Live Health is an isolated Express/Helmet sub-app with ESM modules. No database.
+- **Frontend:** React 19 + Vite 6 (JavaScript/JSX), built as five pages: `/`, `/patient.html`, `/provider.html`, `/live-health`, `/privacy.html` (also served at `/privacy`).
 - **Conversations:** ElevenLabs Conversational AI through `@elevenlabs/client`, bundled by Vite.
 - **Briefs and notes:** Groq, then OpenRouter by default, then offline templates.
 - **State:** in-memory demo records and actions; SSE for live updates between open pages.
@@ -149,6 +165,10 @@ Existing process environment variables take precedence over `.env` values.
 | `OPENROUTER_PROVIDER_ORDER` | Unset in code; `GMICloud` in `.env.example` | Optional comma-separated routing preference within OpenRouter. |
 | `HOST` | `127.0.0.1` | Listening address. Keep the demo local unless you add appropriate access controls. |
 | `PORT` | `3000` | HTTP port. |
+| `WHOOP_CLIENT_ID` | Unset | Live Health OAuth application ID, server-only. |
+| `WHOOP_CLIENT_SECRET` | Unset | Live Health OAuth application secret, server-only. |
+| `APP_ORIGIN` | `http://localhost:PORT` | Exact browser origin for Live Health OAuth and same-origin checks; use port 5173 with Vite development. |
+| `NODE_ENV` | Unset | Set to `production` for deployment; Live Health then requires HTTPS `APP_ORIGIN`. |
 
 `.env`, `.agents.json`, `node_modules/` and `dist/` are Git-ignored. Never commit API keys or replace the fixtures with real patient data. Keys are used server-side; the browser receives short-lived signed conversation URLs rather than the ElevenLabs API key. When enabled, external AI providers receive the record context or transcripts needed for their requests.
 
@@ -204,6 +224,10 @@ Name the gaps up front: there are no live integrations yet, and the risk scores 
 | `lib/findings.js` | Explainable safety-net rules and compact patient context for the conversation agents. |
 | `lib/agents.js` | ElevenLabs prompts, language settings, client-tool schemas, provisioning and signed conversation URLs. |
 | `lib/llm.js` | Text-provider fallback chain and JSON response parsing. |
+| `lib/live-health/` | Isolated WHOOP OAuth/API module, normalization, and personal-baseline analysis. |
+| `web/src/live-health/` | Live Health dashboard, report views, methodology, and browser-only Bluetooth controller. |
+| `web/live-health/index.html` | Live Health entry, served at `/live-health`. |
+| `test/live-health/` | Analysis, normalization, OAuth, API, Bluetooth, browser and route-regression tests. |
 | `vite.config.js` | Vite multi-page build (`web/` → `dist/`) and the dev proxy to the Node server. |
 | `web/*.html` | Page entries for `/`, `/patient.html` and `/provider.html`. |
 | `web/src/landing/` | Landing page markup and the scroll/canvas choreography. |
@@ -235,15 +259,18 @@ Conversation roles are `companion` and `outreach`; languages are `en` and `ar`.
 
 ## Verification and troubleshooting
 
-Run the agent-configuration regression tests (with mocked network and cache access), build the frontend and check the server-side JavaScript syntax from the repository root. There is currently no linter.
+`npm test` runs both the agent-configuration/booking regression tests and Live Health's analysis, OAuth/API and Bluetooth tests. External network and cache access are mocked where needed. Playwright Chromium tests cover Live Health and existing demo routes; their server disables AI, WHOOP and Twilio credentials and outreach destinations. Use Node 22.12+ for the test toolchain. There is no linter configured.
 
 ```bash
 npm test
+npm run test:e2e
 npm run build
-for file in server.js lib/*.js scripts/*.js; do
+for file in server.js lib/*.js lib/live-health/*.mjs scripts/*.js; do
   node --check "$file" || exit 1
 done
 ```
+
+If Chromium is missing, run `npx playwright install chromium`. Browser tests start an isolated server on port 3100 and save screenshots/traces under the Git-ignored `test-results/` directory. They do not validate a physical wearable or a live WHOOP authorization exchange.
 
 With the server running, smoke-check the API and open both app pages:
 
@@ -272,7 +299,7 @@ npm run cleanup
 
 ## Scope and limitations
 
-- There are no live Malaffi, genome-programme, wearable, payer or clinic integrations. Labels and records illustrate those data sources.
+- The patient/provider demos have no live Malaffi, genome-programme, wearable, payer or clinic integrations. Live Health separately supports WHOOP cloud data and standard Bluetooth heart-rate broadcast.
 - Bookings, insurance submissions, alerts and nurse escalations only change local demo state; they do not contact real healthcare services.
-- The risk scores, cost trends and assumed avoided-admission savings are synthetic demonstration logic, not validated clinical or financial models.
-- There is no authentication, authorisation, durable storage or production audit trail. Do not expose the server publicly or use real patient information without implementing and reviewing the necessary security, privacy and clinical safeguards.
+- The risk scores, cost trends and assumed avoided-admission savings are synthetic demonstration logic, not validated clinical or financial models. Live Health thresholds are non-clinical product heuristics, documented in the module's methodology section.
+- The demo APIs have no authentication or authorisation. Live Health has isolated OAuth sessions, but there is no durable storage or production audit trail. Do not expose the whole server publicly or insert real patient information into the demos without implementing and reviewing the necessary security, privacy and clinical safeguards.
