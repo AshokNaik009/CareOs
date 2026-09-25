@@ -3,3 +3,5 @@ node_modules/
 .agents.json
 .DS_Store
 dist/
+playwright-report/
+test-results/

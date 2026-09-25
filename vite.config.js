@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const web = resolve(__dirname, 'web');
@@ -7,9 +7,18 @@ const web = resolve(__dirname, 'web');
 // Three pages, same URLs as before: /, /patient.html, /provider.html.
 // In dev, /api (including the SSE stream) goes to the Node server. Use 127.0.0.1: the server
 // binds IPv4 only and "localhost" can resolve to ::1.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: web,
-  plugins: [react()],
+  plugins: [react(), {
+    name: 'live-health-page',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = new URL(req.url, 'http://localhost');
+        if (url.pathname === '/live-health' || url.pathname === '/live-health/') req.url = `/live-health/index.html${url.search}`;
+        next();
+      });
+    },
+  }],
   build: {
     outDir: resolve(__dirname, 'dist'),
     emptyOutDir: true,
@@ -26,11 +35,14 @@ export default defineConfig({
         index: resolve(web, 'index.html'),
         patient: resolve(web, 'patient.html'),
         provider: resolve(web, 'provider.html'),
+        liveHealth: resolve(web, 'live-health/index.html'),
       },
     },
   },
   server: {
     port: 5173,
-    proxy: { '/api': { target: `http://127.0.0.1:${process.env.PORT || 3000}`, changeOrigin: true } },
+    proxy: Object.fromEntries(['/api', '/live-health/api', '/live-health/auth'].map((prefix) => [prefix, {
+      target: `http://127.0.0.1:${process.env.PORT || loadEnv(mode, __dirname, 'PORT').PORT || 3000}`, changeOrigin: true,
+    }])),
   },
-});
+}));

@@ -49,6 +49,7 @@ export default function Landing() {
         <nav className="nav">
           <a href="/patient.html" data-rev style={d(60)}>Patient agent</a>
           <a href="/provider.html" data-rev style={d(120)}>Care OS</a>
+          <a href="/live-health" data-rev style={d(180)}>Live Health</a>
         </nav>
         <div className="spacer"></div>
         <span className="demo-note" data-rev style={d(180)}>Hub71 demo · synthetic data</span>

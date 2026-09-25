@@ -7,11 +7,15 @@
     "build": "vite build",
     "start": "vite build && node server.js",
     "serve": "node server.js",
-    "cleanup": "node scripts/cleanup.js"
+    "cleanup": "node scripts/cleanup.js",
+    "test": "node --test test/live-health/*.test.mjs",
+    "test:e2e": "vite build --emptyOutDir false && playwright test --config=.devin/playwright.config.cjs"
   },
   "description": "Rafeeq: personal health agent + risk-bearing care OS (Hub71 demo)",
   "dependencies": {
     "@elevenlabs/client": "1.25.0",
+    "express": "5.2.1",
+    "helmet": "8.3.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
@@ -20,6 +24,7 @@
     "node": ">=18.17"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.4",
     "vite": "^6.4.3"

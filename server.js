@@ -258,10 +258,12 @@ function serveStatic(res, file) {
   });
 }
 
+let liveHealthApp;
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const p = url.pathname;
   try {
+    if (p === '/live-health' || p.startsWith('/live-health/')) return liveHealthApp(req, res);
     if (req.method === 'GET' && p === '/api/status') {
       return send(res, 200, { ready: !!state.agents, error: state.agentError, llm: LLM });
     }
@@ -378,8 +380,24 @@ async function provision() {
   }
 }
 
-server.listen(PORT, HOST, () => {
-  console.log(`Rafeeq demo on http://localhost:${PORT}`);
-  if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) console.warn('Frontend not built: run `npm run build` (or `npm run dev` for the Vite dev server).');
-  provision();
+async function startServer() {
+  const { createApp } = await import('./lib/live-health/app.mjs');
+  liveHealthApp = createApp({
+    origin: process.env.APP_ORIGIN || `http://localhost:${PORT}`,
+    clientId: process.env.WHOOP_CLIENT_ID,
+    clientSecret: process.env.WHOOP_CLIENT_SECRET,
+    production: process.env.NODE_ENV === 'production',
+    pageFile: path.join(PUBLIC, 'live-health/index.html'),
+  });
+  server.once('close', () => liveHealthApp.locals.dispose());
+  server.listen(PORT, HOST, () => {
+    console.log(`Rafeeq demo on http://localhost:${PORT}`);
+    if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) console.warn('Frontend not built: run `npm run build` (or `npm run dev` for the Vite dev server).');
+    provision();
+  });
+}
+
+startServer().catch(() => {
+  console.error('Server setup failed. Check dependencies and APP_ORIGIN (HTTPS is required in production).');
+  process.exitCode = 1;
 });
