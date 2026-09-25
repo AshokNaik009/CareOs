@@ -1,52 +1,43 @@
 // Landing choreography: one scroll handler writes CSS custom properties; CSS does the rest.
-(function () {
+// Runs outside React (no state per frame). Returns a cleanup function.
+export function mountChoreography(page) {
   const root = document.documentElement;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const set = (k, v) => root.style.setProperty(k, v);
+  const $ = (sel) => page.querySelector(sel);
+  const $$ = (sel) => [...page.querySelectorAll(sel)];
   const INK = '#171717', RED = '#ef493c';
+  let alive = true;
 
-  // ---------- per-word split + reveal ----------
-  document.querySelectorAll('[data-split]').forEach((el) => {
-    const words = el.textContent.trim().split(/\s+/);
-    el.textContent = '';
-    words.forEach((w, i) => {
-      const s = document.createElement('span');
-      s.className = 'w';
-      s.style.setProperty('--i', i);
-      s.textContent = w;
-      el.appendChild(s);
-      if (i < words.length - 1) el.appendChild(document.createTextNode(' '));
-    });
-  });
+  // ---------- reveal (words are split at render time by <Split>) ----------
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
   }, { threshold: 0.12 });
-  document.querySelectorAll('[data-rev], [data-split]').forEach((el) => io.observe(el));
+  $$('[data-rev], [data-split]').forEach((el) => io.observe(el));
 
   // ---------- stage progress ----------
   const stages = {};
-  for (const id of ['hero', 'manifesto', 'rail', 'packet', 'season']) stages[id] = document.getElementById(id);
+  for (const id of ['hero', 'manifesto', 'rail', 'packet', 'season']) stages[id] = $(`#${id}`);
   const progressOf = (el) => {
     const r = el.getBoundingClientRect();
     const span = el.offsetHeight - innerHeight;
     return span > 0 ? clamp(-r.top / span) : 0;
   };
 
-  const track = document.getElementById('railTrack');
-  let railOverflow = 0;
+  const track = $('[data-rail-track]');
   const measure = () => {
-    railOverflow = Math.max(0, track.scrollWidth - innerWidth);
+    const railOverflow = Math.max(0, track.scrollWidth - innerWidth);
     set('--rail-overflow', `${railOverflow}px`);
   };
 
   // artifact phases: DOM text changes only when the index changes
-  const cues = [...document.querySelectorAll('#cues li')];
-  const statusLine = document.getElementById('statusLine');
-  const pk = { ref: document.getElementById('pkRef'), status: document.getElementById('pkStatus'), date: document.getElementById('pkDate') };
-  const d = new Date(Date.now() + 5 * 864e5);
-  if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-  const booked = `${d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · 10:30`;
+  const cues = $$('[data-cues] li');
+  const statusLine = $('[data-status-line]');
+  const pk = { ref: $('[data-pk="ref"]'), status: $('[data-pk="status"]'), date: $('[data-pk="date"]') };
+  const day = new Date(Date.now() + 5 * 864e5);
+  if (day.getDay() === 0) day.setDate(day.getDate() + 1);
+  const booked = `${day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · 10:30`;
   const PHASES = [
     { status: '● Reading Malaffi record…', ref: 'PA-·····', st: 'pending', date: '— · —' },
     { status: '● Found: 7 mm nodule, follow-up never ordered', ref: 'PA-·····', st: 'pending', date: '— · —' },
@@ -64,9 +55,9 @@
     pk.ref.textContent = p.ref; pk.status.textContent = p.st; pk.date.textContent = p.date;
   }
 
-  const chapters = [...document.querySelectorAll('#chapters .chapter')];
+  const chapters = $$('[data-chapters] .chapter');
   let chapter = -1;
-  const bar = document.querySelector('.lp-bar');
+  const bar = $('.lp-bar');
 
   function onScroll() {
     if (reduced) return;
@@ -123,9 +114,10 @@
   }
 
   // tilled field of drifting red strokes
-  const field = document.getElementById('field');
+  const field = $('[data-canvas="field"]');
+  let fieldFit = null;
   function drawField(t) {
-    const { ctx, w, h } = field._f;
+    const { ctx, w, h } = fieldFit;
     ctx.clearRect(0, 0, w, h);
     const gap = 26;
     let i = 0;
@@ -146,9 +138,10 @@
   }
 
   // contour plate: 22 stacked lines, every fifth in red
-  const contours = document.getElementById('contours');
+  const contours = $('[data-canvas="contours"]');
+  let contoursFit = null;
   function drawContours(t) {
-    const { ctx, w, h } = contours._f;
+    const { ctx, w, h } = contoursFit;
     ctx.clearRect(0, 0, w, h);
     for (let n = 0; n < 22; n++) {
       const base = h * 0.06 + (n / 21) * h * 0.66;
@@ -239,7 +232,7 @@
       PLATES.lung(ctx, w, h);
     },
   };
-  const plates = [...document.querySelectorAll('canvas[data-plate]')];
+  const plates = $$('canvas[data-plate]');
   function drawPlates() {
     for (const cv of plates) {
       const { ctx, w, h } = fit(cv);
@@ -252,15 +245,17 @@
   const visible = new Set();
   const vio = new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? visible.add(e.target) : visible.delete(e.target))));
   vio.observe(field); vio.observe(contours);
+  let raf = 0;
   function loop(t) {
     if (visible.has(field)) drawField(reduced ? 0 : t);
     if (visible.has(contours)) drawContours(reduced ? 0 : t);
-    if (!reduced) requestAnimationFrame(loop);
+    if (!reduced) raf = requestAnimationFrame(loop);
   }
 
   function resize() {
-    field._f = fit(field);
-    contours._f = fit(contours);
+    if (!alive) return;
+    fieldFit = fit(field);
+    contoursFit = fit(contours);
     drawPlates();
     measure();
     onScroll();
@@ -268,10 +263,22 @@
   }
 
   let ticking = false;
-  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; onScroll(); }); } }, { passive: true });
+  let scrollRaf = 0;
+  const onScrollEvent = () => { if (!ticking) { ticking = true; scrollRaf = requestAnimationFrame(() => { ticking = false; onScroll(); }); } };
+  addEventListener('scroll', onScrollEvent, { passive: true });
   addEventListener('resize', resize);
-  document.fonts && document.fonts.ready.then(resize);
+  if (document.fonts) document.fonts.ready.then(resize);
   resize();
   setPhase(reduced ? 4 : 0);
-  requestAnimationFrame(loop);
-})();
+  raf = requestAnimationFrame(loop);
+
+  return () => {
+    alive = false;
+    removeEventListener('scroll', onScrollEvent);
+    removeEventListener('resize', resize);
+    cancelAnimationFrame(raf);
+    cancelAnimationFrame(scrollRaf);
+    io.disconnect();
+    vio.disconnect();
+  };
+}
