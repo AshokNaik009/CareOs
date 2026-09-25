@@ -2,6 +2,8 @@
 
 **A personal health agent connected to a provider Care OS.** Built for Abu Dhabi's health system, Rafeeq turns fragmented health information into coordinated follow-up: spot a missed finding, explain it to the patient, arrange the next step, and update the care team live.
 
+**Live demo:** [rafeeq-fgsm.onrender.com](https://rafeeq-fgsm.onrender.com/). Open the [patient agent](https://rafeeq-fgsm.onrender.com/patient.html), the [Care OS](https://rafeeq-fgsm.onrender.com/provider.html) or [Live Health](https://rafeeq-fgsm.onrender.com/live-health). It runs on Render's free plan, so the first visit after a quiet period can take up to a minute while the server wakes up.
+
 The repository is named **CareOs**; the application is **Rafeeq**. It combines a patient-facing Arabic/English assistant with a dashboard for a provider paid a fixed amount per member per month, illustrating how proactive care could reduce avoidable admissions.
 
 > The patient-agent and provider-demo records are synthetic. Their bookings, pre-authorisations and care-team notifications are simulated; admission risks and savings are illustrative. The separate **Live Health** module can connect to your real WHOOP account and a nearby Bluetooth heart-rate sensor. Its data is not shared with the demos or AI providers. Neither experience is medical advice or a production clinical system.
