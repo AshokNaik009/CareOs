@@ -13,7 +13,8 @@ import Feed from './Feed.jsx';
 import MemberPanel from './MemberPanel.jsx';
 
 const TOOL_LABEL = {
-  schedule_visit: (p) => `Scheduling ${p.visit_type}…`,
+  propose_visit: (p) => `Proposing ${p.visit_type} — awaiting your confirmation`,
+  schedule_visit: () => 'Appointment confirmed',
   log_call_outcome: (p) => `Logging outcome: ${p.outcome}`,
   escalate_to_nurse: () => 'Escalating to on-call nurse…',
 };
@@ -25,6 +26,10 @@ export default function ProviderApp() {
   const [briefs, setBriefs] = useState({});
   const [status, setStatus] = useState(null); // null → the panel's default "ready" line
   const [note, setNote] = useState(null);
+  const [phoneTo, setPhoneTo] = useState(null); // masked OUTBOUND_CALL_TO, or null when not configured
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [whatsappTo, setWhatsappTo] = useState(null); // masked OUTBOUND_WHATSAPP_TO, or null when not configured
+  const [waBusy, setWaBusy] = useState(false);
 
   const selectedRef = useLatest(selected);
   const refreshSeq = useRef(0);
@@ -45,7 +50,7 @@ export default function ProviderApp() {
   const agent = useAgentSession({
     onMode: (mode) => setStatus(mode === 'speaking' ? 'Noor is speaking…' : 'Listening to member…'),
     onStatus: (s, opts) => { if (s === 'connected') setStatus(opts.textOnly ? 'Connected (text simulation). Reply as the member.' : 'Connected. Answer as the member.'); },
-    onTool: (name, p) => agent.addMsg('tool', (TOOL_LABEL[name] || (() => name))(p)),
+    onTool: (name, p, result) => agent.addMsg('tool', result.blocked ? `Waiting for confirmation: ${result.say}` : (TOOL_LABEL[name] || (() => name))(p)),
     onEnd: async (transcript, opts) => {
       if (selectedRef.current !== opts.id || opts.gen !== gen.current) return;
       setStatus('Call ended. Writing clinical note…');
@@ -79,6 +84,45 @@ export default function ProviderApp() {
     fetchBrief(id);
   }
 
+  // Real phone call: the server asks ElevenLabs to ring OUTBOUND_CALL_TO with this member's context.
+  async function phoneCall(lang) {
+    if (agent.busy() || phoneBusy) return;
+    const g = gen.current;
+    setPhoneBusy(true);
+    agent.clear();
+    setNote(null);
+    setStatus(`Placing phone call to ${phoneTo}…`);
+    try {
+      const r = await api.post('/api/phone-call', { id: selected, lang });
+      if (g === gen.current) setStatus(`Ringing ${r.to} from ${r.from}. ${lang === 'ar' ? 'Salem' : 'Noor'} speaks when answered.`);
+    } catch (e) {
+      if (g === gen.current) setStatus(`Phone call failed: ${e.message}`);
+    } finally {
+      setPhoneBusy(false);
+    }
+  }
+
+  // WhatsApp outreach: the server writes a short message about the top gap and sends it via Twilio.
+  async function sendWhatsApp(lang) {
+    if (agent.busy() || waBusy) return;
+    const g = gen.current;
+    setWaBusy(true);
+    agent.clear();
+    setNote(null);
+    setStatus(`Sending WhatsApp to ${whatsappTo}…`);
+    try {
+      const r = await api.post('/api/whatsapp', { id: selected, lang });
+      if (g !== gen.current) return;
+      agent.addMsg('tool', `WhatsApp ${r.status} · ${r.to}`);
+      agent.addMsg('agent', r.message);
+      setStatus(`WhatsApp sent to ${r.to}.`);
+    } catch (e) {
+      if (g === gen.current) setStatus(`WhatsApp failed: ${e.message}`);
+    } finally {
+      setWaBusy(false);
+    }
+  }
+
   async function call(lang, textOnly) {
     if (agent.busy()) return;
     agent.clear();
@@ -90,6 +134,10 @@ export default function ProviderApp() {
       setStatus(micHint(e));
     }
   }
+
+  useEffect(() => {
+    api.get('/api/status').then((s) => { setPhoneTo(s.phoneCallTo || null); setWhatsappTo(s.whatsappTo || null); }).catch(() => {});
+  }, []);
 
   const selectRef = useLatest(select);
   useEffect(() => {
@@ -150,7 +198,7 @@ export default function ProviderApp() {
           </section>
 
           <section>
-            <MemberPanel member={member} brief={member && briefs[member.id]} agent={agent} status={status} note={note} onCall={call} />
+            <MemberPanel member={member} brief={member && briefs[member.id]} agent={agent} status={status} note={note} onCall={call} phoneTo={phoneTo} phoneBusy={phoneBusy} onPhoneCall={phoneCall} whatsappTo={whatsappTo} waBusy={waBusy} onWhatsApp={sendWhatsApp} />
             <div className="card">
               <h2>Live signals <span className="source">patient agents + outreach</span></h2>
               <Feed items={feed} />

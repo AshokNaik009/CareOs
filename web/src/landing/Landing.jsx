@@ -51,7 +51,7 @@ export default function Landing() {
           <a href="/provider.html" data-rev style={d(120)}>Care OS</a>
         </nav>
         <div className="spacer"></div>
-        <span className="demo-note" data-rev style={d(180)}>Hub71 demo · synthetic data</span>
+        <span className="demo-note" data-rev style={d(180)}>Built for Abu Dhabi</span>
       </header>
 
       {/* 1 · Poster hero */}

@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "concurrently -k -n server,web -c red,blue \"node server.js\" \"vite\"",
     "build": "vite build",
+    "test": "node --test lib/*.test.js",
     "start": "vite build && node server.js",
     "serve": "node server.js",
-    "cleanup": "node scripts/cleanup.js"
+    "cleanup": "node scripts/cleanup.js",
+    "compare": "node scripts/compare.js"
   },
-  "description": "Rafeeq: personal health agent + risk-bearing care OS (Hub71 demo)",
+  "description": "Rafeeq: personal health agent + risk-bearing care OS",
   "dependencies": {
     "@elevenlabs/client": "1.25.0",
     "react": "^19.3.0",

@@ -20,10 +20,21 @@ const LLM = process.env.AGENT_LLM || 'claude-haiku-4-5';
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '127.0.0.1';
 
-const { PATIENTS, CONTRACT, PROGRAM_BENEFITS, buildPopulation, costSeries, NOW, DAY } = require('./lib/data');
+const { PATIENTS, CONTRACT, PROGRAM_BENEFITS, namesFor, buildPopulation, costSeries, NOW, DAY } = require('./lib/data');
 const { findingsFor, contextFor } = require('./lib/findings');
-const { ensureAgents, signedUrl } = require('./lib/agents');
+const { ensureAgents, signedUrl, arabicAddressRule } = require('./lib/agents');
+const { createBookingFlow, BookingError } = require('./lib/booking');
 const { completeJson } = require('./lib/llm');
+const phone = require('./lib/phone');
+
+// Real phone calls from the Care OS: number to dial, and optionally which imported ElevenLabs number to call from.
+const OUTBOUND_CALL_TO = (process.env.OUTBOUND_CALL_TO || '').trim();
+const PHONE_NUMBER_ID = (process.env.ELEVENLABS_PHONE_NUMBER_ID || '').trim();
+const { sendWhatsApp, SANDBOX_FROM } = require('./lib/whatsapp');
+// WhatsApp messages from the Care OS: recipient, and the Twilio sender (defaults to the WhatsApp Sandbox).
+const OUTBOUND_WHATSAPP_TO = (process.env.OUTBOUND_WHATSAPP_TO || '').trim();
+const WHATSAPP_FROM = (process.env.TWILIO_WHATSAPP_FROM || SANDBOX_FROM).trim();
+const whoop = require('./lib/whoop');
 
 // ---- in-memory state ----
 const state = {
@@ -38,9 +49,11 @@ const state = {
   gapsClosed: 0,
 };
 const costs = costSeries();
+const bookingFlow = createBookingFlow({ slot });
 
 // Restore the synthetic data to its initial state and tell every open page to reload.
 function resetDemo() {
+  bookingFlow.clear();
   Object.assign(state, { members: buildPopulation(), events: [], bookings: [], preauths: [], visitPreps: {}, savings: 0, gapsClosed: 0 });
   const payload = `data: ${JSON.stringify({ id: 0, at: new Date().toISOString(), type: 'reset' })}\n\n`;
   for (const res of sseClients) res.write(payload);
@@ -117,14 +130,18 @@ function visitPrep(p, specialty) {
 
 // ---- tool/action handlers (called by the browser when the agent invokes a client tool) ----
 const ACTIONS = {
-  book_appointment(pid, a) {
+  propose_visit(id, a, context) {
+    const proposal = bookingFlow.propose(context.sessionId, id, a, context.transcript);
+    return { ui: proposal, say: `Proposed only, NOT booked: ${JSON.stringify(proposal)}. This demo offers the returned clinic and slot only; do not claim it meets every preference. If it differs from the requested time or location, explain the alternative. Read back the visit, exact date, time, clinic, cost and transport choice, ask whether to book this appointment, then STOP and wait for a new patient reply. Use proposal_id ${proposal.proposalId} once their reply indicates agreement to this proposal in context; natural or implied acceptance is enough and no literal yes or نعم is required. No transport or other extras have been arranged.` };
+  },
+  async book_appointment(pid, a, context) {
     const p = PATIENTS[pid];
-    const s = slot(a.urgency);
-    const b = { ref: ref('APT'), patientId: pid, specialty: a.specialty, reason: a.reason, ...s, location: `${a.specialty}, partner clinic, Al Khalidiyah, Abu Dhabi` };
+    const confirmed = await bookingFlow.confirm(context.sessionId, pid, 'book_appointment', a, context.transcript);
+    const b = { ...confirmed, ref: ref('APT'), patientId: pid, sessionId: context.sessionId };
     state.bookings.push(b);
     emit('booking', { patientId: pid, patient: p.name, source: 'patient-agent', booking: b });
-    markMember(pid, 'engaged', `Patient agent booked ${a.specialty}`);
-    return { ui: b, say: `Booked: ${a.specialty} on ${s.dateLabel} at ${s.time}, at ${b.location}. Reference ${b.ref}.` };
+    markMember(pid, 'engaged', `Patient agent booked ${b.specialty}`);
+    return { ui: b, say: `Booked: ${b.specialty} on ${b.dateLabel} at ${b.time}, at ${b.location}. Reference ${b.ref}. ${b.cost} ${b.transportDetails}` };
   },
   submit_preauthorization(pid, a) {
     const p = PATIENTS[pid];
@@ -146,17 +163,20 @@ const ACTIONS = {
     emit('visitprep', { patientId: pid, patient: PATIENTS[pid].name, prep });
     return { ui: prep, say: `Visit sheet for ${a.specialty} is ready on screen with ${prep.questions.length} questions to ask and the latest results.` };
   },
-  schedule_visit(mid, a) {
+  async schedule_visit(mid, a, context) {
     const m = memberById(mid);
-    const s = slot(a.preferred_time);
-    const b = { ref: ref('APT'), patientId: mid, specialty: a.visit_type, ...s, location: 'Rafeeq Care clinic, Al Khalidiyah (free transport available)' };
+    const confirmed = await bookingFlow.confirm(context.sessionId, mid, 'schedule_visit', a, context.transcript);
+    const b = { ...confirmed, ref: ref('APT'), patientId: mid, sessionId: context.sessionId };
     state.bookings.push(b);
     emit('booking', { patientId: mid, patient: m.name, source: 'outreach', booking: b });
-    markMember(mid, 'booked', `Booked ${a.visit_type}`);
-    return { ui: b, say: `Booked ${a.visit_type} on ${s.dateLabel} at ${s.time} at ${b.location}. Reference ${b.ref}. No copay.` };
+    markMember(mid, 'booked', `Booked ${b.specialty}`);
+    return { ui: b, say: `Booked ${b.specialty} on ${b.dateLabel} at ${b.time} at ${b.location}. Reference ${b.ref}. ${b.cost} ${b.transportDetails}` };
   },
-  log_call_outcome(mid, a) {
+  log_call_outcome(mid, a, context) {
     const m = memberById(mid);
+    if (a.outcome === 'booked' && !state.bookings.some((b) => b.patientId === mid && b.sessionId === context.sessionId)) {
+      throw new BookingError('Cannot log booked: no appointment was confirmed in this conversation. Continue collecting preferences and confirmation, or log the actual outcome.');
+    }
     const statusMap = { booked: 'booked', callback_requested: 'callback', declined: 'declined', escalated: 'escalated', unreachable: 'open' };
     const status = m.status === 'booked' && a.outcome !== 'escalated' ? 'booked' : statusMap[a.outcome] || 'open';
     markMember(mid, status, `${a.outcome}: ${a.notes}`);
@@ -213,6 +233,20 @@ async function precallBrief(m) {
   return r ? { ...normalize(r.data, offline, ['talkingPoints', 'likelyBarriers']), provider: r.provider } : { ...offline, provider: 'offline' };
 }
 
+// WhatsApp outreach text in the member's language. The template is used when no text AI is available.
+async function whatsappText(m, lang) {
+  const { firstName } = namesFor(m, lang);
+  const offline = lang === 'ar'
+    ? `مرحباً ${firstName}، معك فريق رفيق للرعاية. لاحظنا أنك بحاجة إلى متابعة: ${m.gaps[0]}. نقدر نحجز لك موعداً هذا الأسبوع بدون أي رسوم ومع مواصلات مجانية. رد بـ "نعم" ونرتب لك الموعد.`
+    : `Hi ${firstName}, it's your Rafeeq Care team. We noticed you're due for: ${m.gaps[0].toLowerCase()}. We can book it this week with no copay and free transport. Reply YES and we'll arrange it.`;
+  const r = await completeJson(
+    'You write short, warm WhatsApp messages from a care team in Abu Dhabi to a member of their diabetes and heart-failure program. Use only the facts given. Never diagnose or mention medicines. Output JSON only.',
+    `Member first name: ${firstName}\nLanguage: ${lang === 'ar' ? 'Arabic (simple Gulf/Emirati style, no English)' : 'English'}\nOpen care gaps, most important first: ${m.gaps.join('; ')}\nProgram benefits: ${PROGRAM_BENEFITS}\n\nReturn JSON: {"message": string (max 60 words, from "Rafeeq Care", about the most important gap, offer to book it this week, end by asking them to reply YES)}`,
+  );
+  const message = r && r.data && typeof r.data.message === 'string' && r.data.message.trim();
+  return message ? { message, provider: r.provider } : { message: offline, provider: 'offline' };
+}
+
 async function callNote(role, id, transcript) {
   const who = PATIENTS[id] ? PATIENTS[id].name : (memberById(id) || {}).name || id;
   const text = transcript.slice(-60).map((t) => `${t.role === 'user' ? 'PATIENT' : 'AGENT'}: ${String(t.message).slice(0, 600)}`).join('\n');
@@ -226,7 +260,7 @@ async function callNote(role, id, transcript) {
   };
   if (!transcript.length) return { ...offline, provider: 'offline' };
   const r = await completeJson(
-    'You are a clinical documentation assistant. Turn an AI voice conversation (English or Arabic) into a short English note for the care team. Use only what the transcript and action log say. Output JSON only.',
+    'You are a clinical documentation assistant. Turn an AI voice conversation (English or Arabic) into a short English note for the care team. Use only what the transcript and action log say. The action log is authoritative for completed actions: a proposed visit or general agreement is not a booking. Distinguish patient preferences, proposed options, agreement expressed naturally or inferred from context, and successful booking. Do not claim the patient said an explicit yes if they accepted in other words. Transport requested_pending_confirmation means requested, NOT arranged; put the outstanding transport confirmation in followUps. Do not turn available benefits into completed actions. Output JSON only.',
     `Conversation type: ${role === 'outreach' ? 'outbound care-gap outreach call' : "patient's personal health agent session"}\nPatient: ${who}\n\nTranscript:\n${text}\n\nActions logged by the system: ${JSON.stringify(actions.map((e) => ({ type: e.type, booking: e.booking, preauth: e.preauth, alert: e.alert, outcome: e.outcome, notes: e.notes })))}\n\nReturn JSON: {"summary": string (2-3 sentences), "actionsTaken": string[], "followUps": string[] (open items the team must do), "riskFlags": string[] (clinical concerns mentioned, empty if none), "sentiment": "positive"|"neutral"|"hesitant"|"distressed"}`,
   );
   return r ? { ...normalize(r.data, offline, ['actionsTaken', 'followUps', 'riskFlags']), provider: r.provider } : { ...offline, provider: 'offline' };
@@ -263,7 +297,7 @@ const server = http.createServer(async (req, res) => {
   const p = url.pathname;
   try {
     if (req.method === 'GET' && p === '/api/status') {
-      return send(res, 200, { ready: !!state.agents, error: state.agentError, llm: LLM });
+      return send(res, 200, { ready: !!state.agents, error: state.agentError, llm: LLM, phoneCallTo: OUTBOUND_CALL_TO ? phone.maskNumber(OUTBOUND_CALL_TO) : null, whatsappTo: OUTBOUND_WHATSAPP_TO ? phone.maskNumber(OUTBOUND_WHATSAPP_TO) : null });
     }
     if (req.method === 'GET' && p === '/api/patients') {
       return send(res, 200, Object.values(PATIENTS).map((x) => ({ id: x.id, name: x.name, preferredLang: x.preferredLang })));
@@ -308,22 +342,66 @@ const server = http.createServer(async (req, res) => {
       const { role, lang, id } = await readBody(req);
       if (!['companion', 'outreach'].includes(role) || !['en', 'ar'].includes(lang)) return send(res, 400, { error: 'bad role or lang' });
       if (!state.agents) return send(res, 503, { error: state.agentError || 'Voice agents are still being set up, try again in a few seconds.' });
-      let name, firstName, context;
+      let name, firstName, context, sex;
       if (role === 'companion') {
         const pt = PATIENTS[id];
         if (!pt) return send(res, 404, { error: 'unknown patient' });
-        ({ name, firstName } = pt); context = contextFor(pt);
+        ({ name, firstName } = namesFor(pt, lang)); context = contextFor(pt); sex = pt.sex;
       } else {
         const m = memberById(id);
         if (!m) return send(res, 404, { error: 'unknown member' });
-        ({ name, firstName } = m); context = memberContext(m);
+        ({ name, firstName } = namesFor(m, lang)); context = memberContext(m); sex = m.sex;
         emit('call', { patientId: m.id, patient: m.name, lang });
       }
       const url = await signedUrl(API_KEY, state.agents[`${role}_${lang}`]);
       return send(res, 200, {
         signedUrl: url,
-        dynamicVariables: { patient_name: name, patient_first_name: firstName, patient_context: context, today: todayLong(), program_benefits: PROGRAM_BENEFITS },
+        sessionId: bookingFlow.createSession(id, role),
+        dynamicVariables: { patient_name: name, patient_first_name: firstName, patient_context: context, today: todayLong(), program_benefits: PROGRAM_BENEFITS, patient_address_rule: arabicAddressRule(sex) },
       });
+    }
+    // Real outbound phone call: the outreach agent rings OUTBOUND_CALL_TO with this member's context.
+    if (req.method === 'POST' && p === '/api/phone-call') {
+      const { id, lang } = await readBody(req);
+      if (!['en', 'ar'].includes(lang)) return send(res, 400, { error: 'bad lang' });
+      const m = memberById(id);
+      if (!m) return send(res, 404, { error: 'unknown member' });
+      if (!OUTBOUND_CALL_TO) return send(res, 400, { error: 'Set OUTBOUND_CALL_TO in .env to the number to call (e.g. +971501234567).' });
+      if (!state.agents) return send(res, 503, { error: state.agentError || 'Voice agents are still being set up, try again in a few seconds.' });
+      const { name, firstName } = namesFor(m, lang);
+      // The outreach tools are browser (client) tools, so they cannot run on a phone call yet.
+      const context = `${memberContext(m)}\nTHIS IS A REAL PHONE CALL: your tools are unavailable, so do not call them. Ask for preferred day/time, clinic or area, and whether transport help is wanted, one question at a time. Read back their preferences and ask whether to pass this request to the care team, then wait. Infer permission from their reply in context; do not require a literal yes or نعم. Only after they indicate agreement say the team needs to confirm availability, the appointment and any transport separately. Never invent a slot or claim anything is booked, arranged or sent.`;
+      try {
+        const r = await phone.outboundCall(API_KEY, {
+          agentId: state.agents[`outreach_${lang}`],
+          phoneNumberId: PHONE_NUMBER_ID,
+          toNumber: OUTBOUND_CALL_TO,
+          dynamicVariables: { patient_name: name, patient_first_name: firstName, patient_context: context, today: todayLong(), program_benefits: PROGRAM_BENEFITS, patient_address_rule: arabicAddressRule(m.sex) },
+        });
+        emit('call', { patientId: m.id, patient: m.name, lang, channel: 'phone', to: phone.maskNumber(OUTBOUND_CALL_TO), conversationId: r.conversationId });
+        return send(res, 200, { ok: true, to: phone.maskNumber(OUTBOUND_CALL_TO), from: r.from, conversationId: r.conversationId });
+      } catch (e) {
+        console.error('Phone call failed:', e.message);
+        return send(res, 502, { error: e.message });
+      }
+    }
+    // WhatsApp outreach: a short message about the member's top care gap, sent to OUTBOUND_WHATSAPP_TO.
+    if (req.method === 'POST' && p === '/api/whatsapp') {
+      const { id, lang } = await readBody(req);
+      if (!['en', 'ar'].includes(lang)) return send(res, 400, { error: 'bad lang' });
+      const m = memberById(id);
+      if (!m) return send(res, 404, { error: 'unknown member' });
+      if (!OUTBOUND_WHATSAPP_TO) return send(res, 400, { error: 'Set OUTBOUND_WHATSAPP_TO in .env to the WhatsApp number to message (e.g. +971501234567).' });
+      const text = await whatsappText(m, lang);
+      try {
+        const r = await sendWhatsApp({ accountSid: process.env.TWILIO_ACCOUNT_SID, authToken: process.env.TWILIO_AUTH_TOKEN, from: WHATSAPP_FROM, to: OUTBOUND_WHATSAPP_TO, body: text.message });
+        const to = phone.maskNumber(OUTBOUND_WHATSAPP_TO);
+        emit('whatsapp', { patientId: m.id, patient: m.name, source: 'outreach', lang, to, text: text.message });
+        return send(res, 200, { ok: true, to, status: r.status, message: text.message, provider: text.provider });
+      } catch (e) {
+        console.error('WhatsApp failed:', e.message);
+        return send(res, 502, { error: e.message });
+      }
     }
     if (req.method === 'POST' && p === '/api/reset') {
       resetDemo();
@@ -345,14 +423,32 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, note);
     }
     if (req.method === 'POST' && p === '/api/action') {
-      const { tool, id, params } = await readBody(req);
-      const fn = ACTIONS[tool];
+      const { tool, id, params, sessionId, transcript } = await readBody(req);
+      const fn = Object.hasOwn(ACTIONS, tool) && ACTIONS[tool];
       if (!fn) return send(res, 400, { error: `unknown tool ${tool}` });
       if (!PATIENTS[id] && !memberById(id)) return send(res, 404, { error: 'unknown patient/member' });
       if (['book_appointment', 'submit_preauthorization', 'notify_care_team', 'prepare_visit_summary'].includes(tool) && !PATIENTS[id]) {
         return send(res, 400, { error: 'patient-agent tool needs a patient id' });
       }
-      return send(res, 200, fn(id, params || {}));
+      try {
+        return send(res, 200, await fn(id, params || {}, { sessionId, transcript }));
+      } catch (e) {
+        if (e instanceof BookingError) return send(res, 200, { blocked: true, say: e.message });
+        throw e;
+      }
+    }
+
+    if (req.method === 'GET' && p === '/privacy') return serveStatic(res, path.join(PUBLIC, 'privacy.html'));
+    if (req.method === 'GET' && p === '/api/whoop/status') return send(res, 200, whoop.status());
+    if (req.method === 'GET' && p === '/whoop/connect') {
+      const to = whoop.connectUrl(req);
+      if (!to) return send(res, 500, { error: 'WHOOP_CLIENT_ID is not set' });
+      res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+    if (req.method === 'GET' && p === '/whoop/callback') {
+      const r = await whoop.handleCallback(req, url);
+      return send(res, r.status, r.html, TYPES['.html']);
     }
 
     if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' });
@@ -378,8 +474,12 @@ async function provision() {
   }
 }
 
-server.listen(PORT, HOST, () => {
-  console.log(`Rafeeq demo on http://localhost:${PORT}`);
-  if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) console.warn('Frontend not built: run `npm run build` (or `npm run dev` for the Vite dev server).');
-  provision();
-});
+if (require.main === module) {
+  server.listen(PORT, HOST, () => {
+    console.log(`Rafeeq demo on http://localhost:${PORT}`);
+    if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) console.warn('Frontend not built: run `npm run build` (or `npm run dev` for the Vite dev server).');
+    provision();
+  });
+}
+
+module.exports = { server, state };

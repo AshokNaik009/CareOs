@@ -12,8 +12,11 @@ function body(e) {
     case 'booking': return <>{who}: booked {e.booking.specialty}, {e.booking.dateLabel} {e.booking.time} <span className="muted">{e.booking.ref}</span></>;
     case 'preauth': return <>{who}: pre-auth filed for {e.preauth.procedure} with {e.preauth.payer} <span className="muted">{e.preauth.ref}</span></>;
     case 'visitprep': return <>{who}: visit sheet prepared for {e.prep.specialty}</>;
-    case 'call': return <>{who}: outreach call started ({e.lang === 'ar' ? 'Arabic' : 'English'})</>;
+    case 'call': return e.channel === 'phone'
+      ? <>{who}: phone call placed to {e.to} ({e.lang === 'ar' ? 'Arabic' : 'English'})</>
+      : <>{who}: outreach call started ({e.lang === 'ar' ? 'Arabic' : 'English'})</>;
     case 'outcome': return <>{who}: call outcome <b>{e.outcome.replace('_', ' ')}</b>. {e.notes}</>;
+    case 'whatsapp': return <>{who}: WhatsApp sent to {e.to}. <span className="muted">{e.text}</span></>;
     case 'savings': return <>Expected avoided cost <b>+{aed(e.avoided)}</b></>;
     case 'note': return <>{who}: AI clinical note. {e.note.summary}</>;
     default: return null;

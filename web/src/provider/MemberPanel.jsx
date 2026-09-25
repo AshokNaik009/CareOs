@@ -19,7 +19,7 @@ function Brief({ brief }) {
 }
 
 // Selected member: profile, gaps, AI brief and the outreach call.
-export default function MemberPanel({ member: m, brief, agent, status, note, onCall }) {
+export default function MemberPanel({ member: m, brief, agent, status, note, onCall, phoneTo, phoneBusy, onPhoneCall, whatsappTo, waBusy, onWhatsApp }) {
   if (!m) return <div className="card"><div className="empty">Select a member to see their brief and start an AI outreach call.</div></div>;
   const other = m.lang === 'ar' ? 'en' : 'ar';
   const running = agent.running;
@@ -46,6 +46,16 @@ export default function MemberPanel({ member: m, brief, agent, status, note, onC
             <button className="btn primary" onClick={() => onCall(m.lang, false)}>Call in {langLabel(m.lang)}</button>
             <button className="btn" onClick={() => onCall(other, false)}>Call in {langLabel(other)}</button>
             <button className="btn" onClick={() => onCall(m.lang, true)}>Simulate by text</button>
+            {phoneTo ? (
+              <button className="btn" disabled={phoneBusy} title={`Real phone call to ${phoneTo}`} onClick={() => onPhoneCall(m.lang)}>
+                {phoneBusy ? 'Dialling…' : `Call phone ${phoneTo}`}
+              </button>
+            ) : null}
+            {whatsappTo ? (
+              <button className="btn" disabled={waBusy} title={`WhatsApp message to ${whatsappTo}`} onClick={() => onWhatsApp(m.lang)}>
+                {waBusy ? 'Sending…' : `WhatsApp ${whatsappTo}`}
+              </button>
+            ) : null}
           </div>
         )}
         {running ? <div className="btns"><button className="btn danger" onClick={() => agent.end()}>Hang up</button></div> : null}

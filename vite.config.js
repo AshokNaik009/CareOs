@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 
 const web = resolve(__dirname, 'web');
 
-// Three pages, same URLs as before: /, /patient.html, /provider.html.
+// Pages: /, /patient.html, /provider.html, /privacy.html (also served at /privacy).
 // In dev, /api (including the SSE stream) goes to the Node server. Use 127.0.0.1: the server
 // binds IPv4 only and "localhost" can resolve to ::1.
 export default defineConfig({
@@ -26,6 +26,7 @@ export default defineConfig({
         index: resolve(web, 'index.html'),
         patient: resolve(web, 'patient.html'),
         provider: resolve(web, 'provider.html'),
+        privacy: resolve(web, 'privacy.html'),
       },
     },
   },
