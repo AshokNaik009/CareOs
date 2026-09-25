@@ -6,6 +6,7 @@ export default function TopBar({ brand, active, children }) {
       <nav className="nav">
         <a className={active === 'patient' ? 'active' : undefined} href="/patient.html">Patient agent</a>
         <a className={active === 'provider' ? 'active' : undefined} href="/provider.html">Care OS</a>
+        <a className={active === 'live-health' ? 'active' : undefined} href="/live-health">Live Health</a>
       </nav>
       <div className="spacer"></div>
       {children}
