@@ -6,6 +6,20 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 
 > All patient records are synthetic. Healthcare integrations, bookings, pre-authorisations and care-team notifications are simulated. Admission risks and savings are illustrative, not clinically validated predictions or measured outcomes. This is not medical advice or a production clinical system.
 
+## Who it's for
+
+**In one line:** Rafeeq is a health agent that finds what the system missed in a resident's record, explains it in Arabic or English, and acts on it by booking, filing and alerting. Behind it is a Care OS for providers paid a fixed amount per member, who keep the savings from every admission they help avoid.
+
+| Who | What they get | Where in the demo |
+|---|---|---|
+| **Residents / patients** (e.g. Fatima: diabetes, a stent, a genome report) | An agent that reads the whole record (Malaffi, genome, wearable), flags the dangerous gaps and handles the admin | Patient agent |
+| **Care coordinators** at a provider | A worklist ranked by admission risk, AI pre-call briefs, and an AI outreach agent that makes the call | Care OS |
+| **Risk-bearing providers** | Lower medical cost under a fixed per-member fee, which means more margin | KPIs and live savings |
+| **Payers** (e.g. Daman / Thiqa) | Fewer avoidable admissions in the contracted cohort | Contract economics |
+| **Distribution partner** (DoH's Sahatna app) | An agent layer inside an app residents already use | Landing pitch |
+
+**Who pays:** the provider, not the patient. The patient agent is free and brings people in. The Care OS is the business, because under capitation each avoided admission is margin the provider keeps.
+
 ## What the demo includes
 
 | Experience | Route | Purpose |
@@ -148,6 +162,38 @@ Existing process environment variables take precedence over `.env` values.
 7. Try Rahul's patient scenario to see the inherited-cholesterol finding.
 
 Use **Reset demo**, then **Confirm reset?** within four seconds, to clear the shared in-memory actions and restore the original panel across connected patient/provider pages. Restarting the server also clears session state. Neither operation deletes the remote ElevenLabs resources.
+
+## Pitching it
+
+### Three-minute story
+
+1. **Hook (about 20s):** "Fatima's genome says her heart medicine may not work for her. Her CT found a lung nodule eight months ago. Nobody acted on either. The record already knew."
+2. **The moment (about 90s):** with the patient agent and the Care OS side by side, switch to **عربي** and ask Rafeeq to start with the most important finding. It explains the clopidogrel risk and, when she agrees, alerts the cardiologist. The alert lands in **Live signals**, Fatima's row flips to **Engaged by agent**, and the savings KPI moves. Rehearse this until it's smooth.
+3. **The business (about 40s):** fixed fee per member, cost per member coming down, and the provider keeping the difference. Show the contract economics.
+4. **The ask (about 30s):** a pilot with one provider and one cohort, Sahatna as distribution, and what is needed next (data access, a clinical partner).
+
+### Why it fits Abu Dhabi
+
+It's built around local systems and people: Malaffi records, Thiqa and Daman coverage, Sahatna distribution, genome reports, and an Arabic voice agent. The gene–drug check is a strong differentiator, because it acts on genomic data that usually sits unused.
+
+### Questions to expect
+
+| Question | Answer |
+|---|---|
+| Is the AI diagnosing? | No. Missed findings come from deterministic, explainable rules that show their evidence. The agents explain and arrange next steps; clinical decisions stay with doctors, and emergencies are routed to 998. |
+| Is the data real? | No, it is synthetic. The voice agents, tool calls, safety-net rules and AI notes are live. The next step is integration access and a regulator sandbox. |
+| Why would a provider buy it? | Under capitation, each avoided admission is kept margin. The Care OS turns care gaps into ranked, completed outreach. |
+| What about privacy? | Keys stay server-side and the browser receives only short-lived conversation URLs. A production version would need UAE data residency, DoH approval and a full security and clinical-safety review (see [Scope and limitations](#scope-and-limitations)). |
+
+Say the gaps before the judges do: there are no live integrations, and the risk scores and savings are illustrative.
+
+### Demo-day checklist
+
+- Start the server early and wait for `Voice agents ready.` in the terminal.
+- Press **Reset demo**, then **Confirm reset?**, before going on stage.
+- Test the microphone in the actual room. If it's noisy, use **Type instead** or **Simulate by text**: they run the same agents.
+- Keep a screen recording of the full flow as a fallback if the network fails.
+- Check the hackathon's judging criteria and weight the story to match.
 
 ## Project structure
 
