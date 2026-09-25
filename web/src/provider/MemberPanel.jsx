@@ -40,8 +40,9 @@ export default function MemberPanel({ member: m, brief, agent, status, note, onC
       <div className="brief" style={{ marginTop: 12 }}><Brief brief={brief} /></div>
       <div className="agent" style={{ marginTop: 14 }}>
         <div className="orb-wrap" style={{ padding: '6px 0' }}><div className={`orb ${agent.orb}`} style={{ width: 72, height: 72 }}></div></div>
-        <div className="agent-status">{status || `AI outreach agent "Noor" is ready. You play ${m.firstName}.`}</div>
-        {running ? null : (
+        <div className="agent-status" role="status">{status || `AI outreach agent "Salem" is ready. You play ${m.firstName}.`}</div>
+        {agent.connecting ? <div className="empty" role="status">Connecting to outreach agent…</div> : null}
+        {running || agent.connecting ? null : (
           <div className="btns">
             <button className="btn primary" onClick={() => onCall(m.lang, false)}>Call in {langLabel(m.lang)}</button>
             <button className="btn" onClick={() => onCall(other, false)}>Call in {langLabel(other)}</button>

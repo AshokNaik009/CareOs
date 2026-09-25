@@ -131,7 +131,7 @@ export default function PatientApp() {
   const running = agent.running;
   return (
     <>
-      <TopBar active="patient" brand={<>Rafeeq <span className="ar">رفيق</span> <small>Personal health agent</small></>}>
+      <TopBar active="patient" contextId={patientId} lang={lang} brand={<>Rafeeq <span className="ar">رفيق</span> <small>Personal health agent</small></>}>
         <select aria-label="Patient" value={patients ? patientId : ''} onChange={(e) => switchTo({ patientId: e.target.value })}>
           {(patients || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -147,23 +147,30 @@ export default function PatientApp() {
       <Banner text={banner} />
 
       <main className="page grid-3">
+        <section className="journey" aria-label="Patient demo journey">
+          <div><span className="source">01 · Patient experience</span><h1>From missed finding to follow-up.</h1><p>Review the evidence, ask Rafeeq for help, then confirm the proposed action. End the session to create the care-team note.</p></div>
+          <a className="btn primary" href={`/provider.html?m=${encodeURIComponent(patientId)}`} target="_blank" rel="noopener noreferrer">Next: care-team impact ↗</a>
+          <div className="journey-steps"><span>1 · Review findings</span><span>2 · Talk or type</span><span>3 · Confirm the plan</span><span>4 · See shared impact</span></div>
+          <small className="muted">Synthetic records · Care actions are simulated · Care OS opens in a new tab so your session stays open.</small>
+        </section>
         <Record patient={data && data.patient} />
 
         <section>
           <div className="card agent">
             <h2 style={{ justifyContent: 'center' }}>Talk to Rafeeq</h2>
             <div className="orb-wrap"><div className={`orb ${agent.orb}`}></div></div>
-            <div className="agent-status">{status}</div>
+            <div className="agent-status" role="status">{status}</div>
             <div className="btns">
               {running ? (
-                <button className="btn danger" onClick={() => agent.end()}>End</button>
+                <button className="btn danger" onClick={() => agent.end()}>End & create care note</button>
               ) : (
                 <>
-                  <button className="btn primary" onClick={() => start(false)}>Start voice</button>
-                  <button className="btn" onClick={() => start(true)}>Type instead</button>
+                  <button className="btn primary" disabled={!data || agent.connecting} onClick={() => start(false)}>{agent.connecting ? 'Connecting…' : 'Start voice'}</button>
+                  <button className="btn" disabled={!data || agent.connecting} onClick={() => start(true)}>Type instead</button>
                 </>
               )}
             </div>
+            <p className="small muted">Voice needs microphone permission. Choose a prompt below to start by text.</p>
             <div className="chips">
               {CHIPS[lang].map((c) => <button key={c} className="chip" dir="auto" onClick={() => startForText(c)}>{c}</button>)}
             </div>
@@ -174,13 +181,13 @@ export default function PatientApp() {
         </section>
 
         <section>
-          <div className="card">
-            <h2>Safety net: missed findings <span className="source">{data ? `${data.findings.length} found` : ''}</span></h2>
-            <Findings data={data} onAsk={(f) => startForText(lang === 'ar' ? `ساعدني في هذا الأمر: ${f.title}` : `Please help me with this: ${f.title}`)} />
-          </div>
-          <div className="card">
+          <div className="card" aria-live="polite">
             <h2>Done on your behalf</h2>
             <ActionsDone data={data} />
+          </div>
+          <div className="card">
+            <h2>Safety net: missed findings <span className="source">{data ? `${data.findings.length} found` : ''}</span></h2>
+            <div className="findings-scroll"><Findings data={data} onAsk={(f) => startForText(lang === 'ar' ? `ساعدني في هذا الأمر: ${f.title}` : `Please help me with this: ${f.title}`)} /></div>
           </div>
         </section>
       </main>

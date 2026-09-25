@@ -40,7 +40,7 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 
 - A synthetic diabetes and heart-failure panel ranked by an illustrative risk score.
 - Pre-call briefs and post-conversation notes generated through optional text-LLM providers, with deterministic templates when those providers are unavailable.
-- An Arabic/English outreach agent, **Noor**, with tools to schedule visits, log outcomes and escalate to a nurse.
+- An Arabic/English outreach agent, **Salem**, with tools to schedule visits, log outcomes and escalate to a nurse.
 - Contract and cost charts for an illustrative **1,240-member** contract; the interactive worklist contains **40 sample members**, not the entire contract population.
 - A shared Server-Sent Events (SSE) feed connects both apps. Fatima belongs to both experiences, so her patient-agent actions appear in the provider feed and can update her worklist status and session savings.
 
@@ -65,7 +65,7 @@ Module endpoints are under `/live-health`: `GET /api/session`, `GET /auth/whoop`
 
 1. **Landing (`/`)** tells the story (*the record already knew; nobody acted on it*) and links to both apps.
 2. **Patient agent (`/patient.html`)**: Fatima's record is loaded, and the safety-net rules list what was missed, each with its evidence. She talks to Rafeeq by voice or text. Rafeeq explains a finding and, with her consent, acts: it books the visit, files the pre-authorisation, alerts the care team or prepares a visit sheet. Each action appears under **Done on your behalf** and marks the finding **✓ Handled**. When the session ends, an AI note is written for the care team.
-3. **Care OS (`/provider.html`)**: the provider sees contract economics and a worklist ranked by admission risk. Fatima is on it, tagged *has Rafeeq*. Selecting a member produces an AI pre-call brief. **Call** starts the outreach agent Noor, played by you as the member. Noor can book a visit, log the outcome or escalate to a nurse. When the call ends, a clinical note is written, the member's status changes, and the session-savings KPI updates.
+3. **Care OS (`/provider.html`)**: the provider sees contract economics and a worklist ranked by admission risk. Fatima is on it, tagged *has Rafeeq*. Selecting a member produces an AI pre-call brief. **Call** starts the outreach agent Salem, played by you as the member. Salem can book a visit, log the outcome or escalate to a nurse. When the call ends, a clinical note is written, the member's status changes, and the session-savings KPI updates.
 
 ### How a conversation turns into an action
 

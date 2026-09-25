@@ -39,11 +39,11 @@ export function mountChoreography(page) {
   if (day.getDay() === 0) day.setDate(day.getDate() + 1);
   const booked = `${day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · 10:30`;
   const PHASES = [
-    { status: '● Reading Malaffi record…', ref: 'PA-·····', st: 'pending', date: '— · —' },
-    { status: '● Found: 7 mm nodule, follow-up never ordered', ref: 'PA-·····', st: 'pending', date: '— · —' },
+    { status: '● Reading her health record…', ref: 'PA-·····', st: 'pending', date: '— · —' },
+    { status: '● Found: lung spot, follow-up never booked', ref: 'PA-·····', st: 'pending', date: '— · —' },
     { status: '● Explaining to Fatima in Arabic…', ref: 'PA-·····', st: 'pending', date: '— · —' },
-    { status: '● Pre-auth filed with Thiqa', ref: 'PA-95212', st: 'submitted', date: '— · —' },
-    { status: '● Booked. Visit sheet ready.', ref: 'PA-95212', st: 'submitted', date: booked },
+    { status: '● Insurance approval requested', ref: 'PA-95212', st: 'submitted', date: '— · —' },
+    { status: '● Scan booked.', ref: 'PA-95212', st: 'submitted', date: booked },
   ];
   let phase = -1;
   function setPhase(i) {

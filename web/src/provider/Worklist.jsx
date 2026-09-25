@@ -6,7 +6,7 @@ export default function Worklist({ members, selected, onSelect }) {
       <thead><tr><th>#</th><th>Member</th><th>Cohort</th><th>Risk</th><th>Open gaps</th><th>Lang</th><th>Status</th></tr></thead>
       <tbody>
         {members.map((m, i) => (
-          <tr key={m.id} className={selected === m.id ? 'sel' : ''} onClick={() => onSelect(m.id)}>
+          <tr key={m.id} className={selected === m.id ? 'sel' : ''} tabIndex={0} aria-selected={selected === m.id} onClick={() => onSelect(m.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(m.id); } }}>
             <td className="muted num">{i + 1}</td>
             <td><b>{m.name}</b>{m.linkedPatientAgent ? <span className="link-badge">has Rafeeq</span> : null}<div className="small muted">{m.age} · {m.sex}</div></td>
             <td>{m.cohort}</td>

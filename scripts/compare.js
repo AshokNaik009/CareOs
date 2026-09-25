@@ -17,7 +17,7 @@ const ROOT = path.join(__dirname, '..');
   }
 })();
 
-const { PROMPT, FIRST_MESSAGE, TOOLS, AGENT_SPECS, VOICES, AR_VOICE, TTS_MODEL, arabicPrompt, arabicFirstMessage, arabicAddressRule } = require('../lib/agents');
+const { PROMPT, FIRST_MESSAGE, TOOLS, AGENT_SPECS, VOICES, AR_VOICE, TTS_MODEL, AR_SPEED, arabicPrompt, arabicFirstMessage, arabicAddressRule } = require('../lib/agents');
 const { PATIENTS, PROGRAM_BENEFITS, NOW, namesFor } = require('../lib/data');
 const { contextFor } = require('../lib/findings');
 
@@ -133,7 +133,7 @@ async function tts(text, lang, role) {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, model_id: TTS_MODEL[lang] }),
+    body: JSON.stringify({ text, model_id: TTS_MODEL[lang], ...(lang === 'ar' ? { voice_settings: { speed: AR_SPEED } } : {}) }),
   });
   if (!res.ok) throw new Error(`TTS ${res.status} ${(await res.text()).slice(0, 200)}`);
   return Buffer.from(await res.arrayBuffer());

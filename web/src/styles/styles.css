@@ -53,6 +53,18 @@ h1, h2, h3 { margin: 0; }
 
 /* ---------- layout ---------- */
 .page { padding: 24px 24px 48px; }
+.journey { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; padding: 18px 22px; margin-bottom: 20px; border: 1.5px solid var(--ink); border-left: 5px solid var(--red); background: var(--paper); }
+.grid-3 > .journey { margin-bottom: 0; }
+.journey h1 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 3vw, 34px); text-transform: uppercase; margin-top: 6px; line-height: 1.1; }
+.journey p { margin: 8px 0 0; max-width: 78ch; color: var(--muted); font-size: 13px; }
+.journey .btn { text-decoration: none; }
+.journey-steps { display: flex; gap: 10px 24px; flex-wrap: wrap; width: 100%; border-top: 1px solid var(--hair); padding-top: 12px; font-family: var(--mono); font-size: 10px; text-transform: uppercase; }
+.journey small { width: 100%; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.grid-3 > section, .grid-2 > section { min-width: 0; }
+.composer input { min-width: 0; }
+.findings-scroll { max-height: 520px; overflow-y: auto; }
+@media (max-width: 600px) { .page { padding: 14px; } .journey { padding: 16px; } .brand small { display: none; } }
 .grid-3 { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.3fr) minmax(300px, 1.1fr); gap: 20px; align-items: start; }
 @media (max-width: 1100px) { .grid-3 { grid-template-columns: 1fr; } }
 .card { background: var(--paper); border: 1.5px solid var(--ink); padding: 18px; }
@@ -165,7 +177,9 @@ h1, h2, h3 { margin: 0; }
 .kpi .v.good { color: var(--ink); }
 .grid-2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 1100px) { .grid-2 { grid-template-columns: 1fr; } }
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow: auto; max-height: 460px; }
+.table-wrap thead { position: sticky; top: 0; z-index: 1; background: var(--paper); }
+.table-wrap tr:focus-visible { outline-offset: -2px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; font-family: var(--mono); font-weight: 400; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); padding: 8px; border-bottom: 1.5px solid var(--ink); }
 td { padding: 10px 8px; border-bottom: 1px solid var(--hair); vertical-align: top; }

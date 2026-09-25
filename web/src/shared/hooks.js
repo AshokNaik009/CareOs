@@ -59,12 +59,15 @@ export function useAgentSession(handlers) {
   const [messages, setMessages] = useState([]);
   const [running, setRunning] = useState(null); // null, or { textOnly } while a session is live
   const [orb, setOrb] = useState('idle');
+  const [connecting, setConnecting] = useState(false);
 
   const addMsg = useCallback((cls, text) => setMessages((m) => [...m, { id: ++msgId, cls, text }]), []);
   const clear = useCallback(() => setMessages([]), []);
 
   const start = useCallback(async (opts) => {
+    if (startingRef.current || sessionRef.current) return;
     startingRef.current = true;
+    setConnecting(true);
     let endedEarly = false;
     try {
       const s = await startAgent(opts, {
@@ -93,6 +96,7 @@ export function useAgentSession(handlers) {
       return s;
     } finally {
       startingRef.current = false;
+      setConnecting(false);
     }
   }, [addMsg, h]);
 
@@ -109,7 +113,7 @@ export function useAgentSession(handlers) {
   useEffect(() => () => { if (sessionRef.current) sessionRef.current.end().catch(() => {}); }, []);
 
   return {
-    messages, running, orb, addMsg, clear, start, sendText, end, endSilently,
+    messages, running, connecting, orb, addMsg, clear, start, sendText, end, endSilently,
     busy: () => !!(sessionRef.current || startingRef.current),
     session: () => sessionRef.current,
   };

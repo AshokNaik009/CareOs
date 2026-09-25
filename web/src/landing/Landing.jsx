@@ -6,36 +6,35 @@ import { mountChoreography } from './choreography.js';
 const d = (ms) => ({ '--d': `${ms}ms` });
 
 const RAIL = [
-  { plate: 'helix', label: 'Genome × medication', title: 'Clopidogrel may not work', meta: 'CYP2C19 *2/*2 · poor metaboliser · stent protection at risk', mark: '■ High · 300 days unreviewed' },
-  { plate: 'lung', label: 'Missed follow-up', title: 'Lung nodule, no follow-up CT', meta: '7 mm nodule · Fleischner 6–12 months · never ordered', mark: '■ High · 8 months' },
-  { plate: 'pulse', label: 'Wearable signal', title: '3 irregular-rhythm alerts', meta: '30 days · resting HR 72 → 81 · no ECG since', mark: '■ High · possible AF' },
-  { plate: 'drops', label: 'Lab trend', title: 'Kidneys under strain', meta: 'eGFR 84 → 63 · UACR 48 · no protective medicine', mark: '□ Medium' },
-  { plate: 'bars', label: 'Lab trend', title: 'HbA1c climbing to 8.9%', meta: '7.1 → 7.6 → 8.1 → 8.9 · no specialist in 14 months', mark: '□ Medium' },
-  { plate: 'eye', label: 'Referral lost', title: 'Eye screening never booked', meta: 'Referral written 5 months ago · status: not scheduled', mark: '□ Medium' },
+  { plate: 'helix', label: 'Genes × medicine', title: 'Her heart pill may not work', meta: 'Her genes stop this drug from working · the stent is less protected', mark: '■ Urgent · 10 months unchecked' },
+  { plate: 'lung', label: 'Missed follow-up', title: 'Lung spot, no follow-up scan', meta: 'Small spot seen on a scan · re-check advised · never booked', mark: '■ Urgent · 8 months' },
+  { plate: 'pulse', label: 'Smartwatch', title: '3 irregular heartbeat alerts', meta: 'Last 30 days · resting heart rate rising · no heart test since', mark: '■ Urgent' },
+  { plate: 'drops', label: 'Blood test trend', title: 'Kidneys under strain', meta: 'Kidney function down by a quarter · no protective medicine', mark: '□ Soon' },
+  { plate: 'bars', label: 'Blood test trend', title: 'Blood sugar keeps rising', meta: 'Four tests in a row, each higher · no specialist in 14 months', mark: '□ Soon' },
+  { plate: 'eye', label: 'Lost referral', title: 'Eye check never booked', meta: 'Referral written 5 months ago · still not scheduled', mark: '□ Soon' },
 ];
 
-const CUES = ['Found in the record', 'Explained in her language', 'Insurance pre-auth filed', 'Scan booked, visit sheet ready'];
+const CUES = ['Spots what was missed', 'Explains it in Arabic', 'Gets insurance approval', 'Books the scan'];
 
 const CHAPTERS = [
-  { title: 'Win the patient', text: "A free agent that holds the whole record and acts on it. We partner with DoH's Sahatna app to reach people." },
-  { title: 'Take the risk', text: 'Sign with Daman and Thiqa for diabetes and heart-failure members and get paid a fixed fee per member each month.' },
-  { title: 'Keep the savings', text: 'AI outreach closes care gaps before they become admissions. Every admission we prevent adds to our margin.' },
+  { title: 'Help patients for free', text: 'A free assistant that knows your health history and follows up for you, offered through the government health app.' },
+  { title: 'Get paid to keep them well', text: 'Insurers pay us a fixed monthly fee for each member with diabetes or heart failure.' },
+  { title: 'Keep what we save', text: 'Catching problems early means fewer hospital stays. Every stay we prevent is money saved.' },
 ];
 
 const ECONOMICS = [
-  ['Members under contract', 'Type 2 diabetes + heart failure cohort', '1,240'],
-  ['Capitation', 'Paid to us per member, per month', 'AED 1,150'],
-  ['Medical cost before', 'Per member per month, pre-program', 'AED 1,080'],
-  ['Medical cost after', 'Trailing 3 months with AI care OS', 'AED 955'],
-  ['Annualised savings', 'Kept by the provider under the contract', 'AED 1.86M'],
+  ['Members', 'People with diabetes or heart failure', '1,240'],
+  ['We get paid', 'Per member, per month', 'AED 1,150'],
+  ['Care cost before', 'Per member, per month', 'AED 1,080'],
+  ['Care cost after', 'Per member, per month, with Rafeeq', 'AED 955'],
+  ['Saved per year', 'Kept by us', 'AED 1.86M'],
 ];
 
 const FAQ = [
-  ['Is any of this real patient data?', 'No. Every patient, member and number is synthetic. The voice agents, speech recognition, tool calls, safety-net rules and AI notes are all live.'],
-  ['Does Rafeeq diagnose or change medicines?', "No. It explains results, spots what was missed and routes clinical decisions to the patient's doctor. For emergencies it tells people to call 998."],
-  ['How are missed findings detected?', 'With deterministic, explainable rules over the record: radiology recommendations never actioned, gene–drug pairs from CPIC guidance, lab trends without follow-up, wearable alerts with no ECG since, and referrals never booked. Each finding shows its evidence.'],
-  ['What runs the AI?', 'Voice uses ElevenLabs Conversational AI in Arabic and English, with client tools for booking, pre-auth and alerts. Call notes and pre-call briefs use Groq first, OpenRouter as fallback, and an offline template if both fail.'],
-  ['Why partner with Sahatna rather than compete?', 'Distribution is the hard part. The DoH app already reaches residents, and Rafeeq becomes the agent layer inside it.'],
+  ['Is this real patient data?', 'No. All patients and numbers are made up for the demo. The voice assistant and the AI are real and working.'],
+  ['Does Rafeeq diagnose or change medicines?', "No. It explains results, spots what was missed and sends medical decisions to the patient's doctor. In an emergency it tells people to call 998."],
+  ['How does it find what was missed?', 'It checks the record against clear medical rules, like a follow-up scan that was never booked or a medicine that clashes with your genes. Every alert shows the evidence behind it.'],
+  ['Why work with the government health app?', "Reaching people is the hard part. The app already has Abu Dhabi's residents, so Rafeeq lives inside it."],
 ];
 
 export default function Landing() {
@@ -47,8 +46,8 @@ export default function Landing() {
       <header className="topbar lp-bar">
         <a className="brand" href="/" data-rev style={d(0)}>Rafeeq <span className="ar">رفيق</span></a>
         <nav className="nav">
-          <a href="/patient.html" data-rev style={d(60)}>Patient agent</a>
-          <a href="/provider.html" data-rev style={d(120)}>Care OS</a>
+          <a href="/patient.html" data-rev style={d(60)}>For patients</a>
+          <a href="/provider.html" data-rev style={d(120)}>Care team</a>
           <a href="/live-health" data-rev style={d(180)}>Live Health</a>
         </nav>
         <div className="spacer"></div>
@@ -63,9 +62,15 @@ export default function Landing() {
             <div className="poster-line small-line" style={{ '--chars': 26 }}>Your health, acted upon.</div>
             <div className="poster-line big-line" style={{ '--chars': 6 }}>Rafeeq</div>
             <div className="hero-sub label" data-rev style={d(300)}>A personal health agent for every Abu Dhabi resident</div>
+            <div className="hero-actions">
+              <a className="btn primary" href="/patient.html?p=P-1001&lang=en">Start Fatima’s demo →</a>
+              <a className="btn" href="/provider.html?m=P-1001">See the care team view</a>
+              <p>See what was missed. Fix it in one tap.</p>
+              <span className="label light">Demo data only</span>
+            </div>
           </div>
           <div className="hero-meta">
-            {['Malaffi record', 'Genome report', 'Wearable data', 'Arabic · English', 'Scroll ↓'].map((t, i) => <span key={t} data-rev style={d(i * 70)}>{t}</span>)}
+            {['Health record', 'Genes', 'Smartwatch', 'Arabic · English', 'Scroll ↓'].map((t, i) => <span key={t} data-rev style={d(i * 70)}>{t}</span>)}
           </div>
         </div>
       </section>
@@ -78,7 +83,7 @@ export default function Landing() {
             <p className="m-line m-base">The record already knew. Nobody acted on it.</p>
             <p className="m-line m-fill" aria-hidden="true">The record already knew. Nobody acted on it.</p>
           </div>
-          <Split as="p" className="manifesto-foot">Results get filed. Radiologists recommend follow-ups. Genome reports flag drug risks. Watches log irregular heartbeats. Each sits in a different system, and the patient falls through the gap between them.</Split>
+          <Split as="p" className="manifesto-foot">Test results get filed. Doctors ask for follow-ups. Smartwatches spot odd heartbeats. It all sits in different places, and nobody puts it together.</Split>
         </div>
       </section>
 
@@ -86,8 +91,8 @@ export default function Landing() {
       <section className="stage stage-rail" id="rail" style={{ height: '340svh' }}>
         <div className="pin">
           <div className="rail-head">
-            <Split as="h2" className="display rail-title">The record flagged it. Nobody booked it.</Split>
-            <span className="label rail-hint" data-rev style={d(200)}>Scroll → the safety net, one finding at a time</span>
+            <Split as="h2" className="display rail-title">Warning signs, missed.</Split>
+            <span className="label rail-hint" data-rev style={d(200)}>Scroll → one missed problem at a time</span>
           </div>
           <div className="rail-track" data-rail-track>
             {RAIL.map((c, i) => (
@@ -106,19 +111,19 @@ export default function Landing() {
         <div className="pin dark packet-grid">
           <div className="packet-copy">
             <div className="label light" data-rev>02 · It doesn't remind you. It acts.</div>
-            <Split as="h2" className="display packet-title">One sentence in Arabic. Four things done.</Split>
-            <Split as="p" className="packet-lede">Fatima says «احجزيها لي». Rafeeq explains the nodule, files the Thiqa pre-authorisation, books the scan and preps her questions.</Split>
+            <Split as="h2" className="display packet-title">One sentence. Four things done.</Split>
+            <Split as="p" className="packet-lede">Fatima says «احجزيها لي» (“book it for me”). Rafeeq explains the lung spot, gets insurance approval, books the scan and writes down her questions.</Split>
             <ol className="cues" data-cues>
               {CUES.map((t, i) => <li key={t} data-rev style={d(i * 80)}><span>{String(i + 1).padStart(2, '0')}</span>{t}</li>)}
             </ol>
-            <div className="status-line label light" data-status-line>● Reading Malaffi record…</div>
+            <div className="status-line label light" data-status-line>● Reading her health record…</div>
           </div>
           <div className="packet-wrap">
             <div className="packet">
               <div className="pk-head">
-                <div className="label">Pre-authorisation · Thiqa</div>
-                <div className="pk-name">CT Chest</div>
-                <div className="label">Fatima Al Mansoori · Thiqa member</div>
+                <div className="label">Insurance approval</div>
+                <div className="pk-name">Chest scan</div>
+                <div className="label">Fatima Al Mansoori</div>
               </div>
               <canvas className="pk-plate" data-plate="scan"></canvas>
               <div className="pk-rows">
@@ -138,8 +143,8 @@ export default function Landing() {
         <div className="pin">
           <canvas className="contours" data-canvas="contours" aria-hidden="true"></canvas>
           <div className="season-content">
-            <div className="label" data-rev>03 · Then we become the provider</div>
-            <Split as="h2" className="display season-title">The patient agent is the front door. The care OS is the business.</Split>
+            <div className="label" data-rev>03 · The business</div>
+            <Split as="h2" className="display season-title">Free for patients. Paid by insurers.</Split>
             <div className="chapters" data-chapters>
               {CHAPTERS.map((c, i) => (
                 <div className="chapter" key={c.title} data-rev style={d(i * 90)}><div className="label">Chapter {String(i + 1).padStart(2, '0')}</div><h3>{c.title}</h3><p>{c.text}</p></div>
@@ -152,7 +157,7 @@ export default function Landing() {
       {/* Economics table */}
       <section className="band">
         <div className="band-inner">
-          <div className="label" data-rev>04 · Illustrative contract economics</div>
+          <div className="label" data-rev>04 · The numbers (example)</div>
           <Split as="h2" className="display band-title">Where the money is.</Split>
           <table className="price-table">
             <tbody>
@@ -163,7 +168,7 @@ export default function Landing() {
           </table>
           <div className="cta-row">
             <a className="btn primary" href="/patient.html" data-rev style={d(0)}>Talk to Rafeeq as Fatima →</a>
-            <a className="btn" href="/provider.html" data-rev style={d(80)}>Open the care OS →</a>
+            <a className="btn" href="/provider.html" data-rev style={d(80)}>See the care team view →</a>
           </div>
         </div>
       </section>
@@ -180,12 +185,12 @@ export default function Landing() {
         <div className="band-inner foot-grid">
           <div className="foot-brand" data-rev>Rafeeq <span>رفيق</span></div>
           <div className="foot-col">
-            <a href="/patient.html" data-rev style={d(0)}>Patient agent</a>
-            <a href="/provider.html" data-rev style={d(60)}>Care OS</a>
+            <a href="/patient.html" data-rev style={d(0)}>For patients</a>
+            <a href="/provider.html" data-rev style={d(60)}>Care team</a>
           </div>
           <div className="foot-col label light">
             <span data-rev style={d(0)}>Abu Dhabi · 2026</span>
-            <span data-rev style={d(60)}>Synthetic data · not medical advice</span>
+            <span data-rev style={d(60)}>Demo data · not medical advice</span>
           </div>
         </div>
       </footer>
