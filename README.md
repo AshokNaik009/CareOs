@@ -6,7 +6,7 @@
 
 The repository is named **CareOs**; the application is **Rafeeq**. It combines a patient-facing Arabic/English assistant with a dashboard for a provider paid a fixed amount per member per month, illustrating how proactive care could reduce avoidable admissions.
 
-> The patient-agent and provider-demo records are synthetic. Their bookings, pre-authorisations and care-team notifications are simulated; admission risks and savings are illustrative. The separate **Live Health** module can connect to your real WHOOP account and a nearby Bluetooth heart-rate sensor. Its data is not shared with the demos. Optional, explicitly consented contact alerts share matched readings and contact details with Retell AI to place a wellness check-in call. Neither experience is medical advice or a production clinical system.
+> The patient-agent and provider-demo records are synthetic. Their bookings, pre-authorisations and care-team notifications are simulated; admission risks and savings are illustrative. The separate **Live Health** module can connect to your real WHOOP account and a nearby Bluetooth heart-rate sensor. Its data is not shared with the demos. Optional, explicitly consented contact alerts use Twilio for phone calls and a dedicated ElevenLabs agent for two-way AI conversation, sharing the contact details, matched readings, and call audio needed for that flow. Neither experience is medical advice or a production clinical system.
 
 ## Who it's for
 
@@ -48,36 +48,35 @@ The repository is named **CareOs**; the application is **Rafeeq**. It combines a
 
 ### Live Health
 
-The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Missing readings remain missing; there are no user-facing sample readings, and daily analysis does not use an LLM. The optional **Your circle of care** section after the methodology supports illustrated, selectable WHOOP alerts and consented Retell calls to an approved emergency contact. Blood pressure and abnormal-rhythm tiles are disabled because those readings are not in WHOOP’s public API. Alerts are session-only, not an emergency service; setup instructions and the Retell agent prompt are in that section. Calling is disabled by default.
-**Your day, in perspective.** Live Health turns your own WHOOP recovery, sleep and strain into a clear daily brief, measured against your personal history rather than population averages. Unlike the patient and provider demos, it uses your real data. Try it at [rafeeq-fgsm.onrender.com/live-health](https://rafeeq-fgsm.onrender.com/live-health).
+**Your day, in perspective.** Live Health turns your own WHOOP recovery, sleep and strain into a clear daily brief, measured against your personal history rather than population averages. The demo now defaults to clearly labelled **mock REST metrics** without WHOOP login, while **live heart rate always uses real Bluetooth sensor packets** and remains blank without a fresh reading. Set `LIVE_HEALTH_SAMPLE_DATA=false` to restore real WHOOP REST data; mock mode never enables calls. Try it at [rafeeq-fgsm.onrender.com/live-health](https://rafeeq-fgsm.onrender.com/live-health).
 
 ![Live Health: connect WHOOP for a daily brief, and pair a sensor for live heart rate](docs/images/live-health.png)
 
-- **Connect WHOOP:** read-only access to recovery, sleep, cycles and workouts. Disconnect at any time.
+- **REST metrics:** mocked and labelled by default. With `LIVE_HEALTH_SAMPLE_DATA=false`, connect WHOOP for read-only access to recovery, sleep, cycles and workouts; disconnect at any time.
 - **Overview:** today's recovery guidance, explained in plain language.
 - **Your baseline:** 7- and 30-day personal baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones.
 - **Live heart rate:** turn on Heart Rate Broadcast in the WHOOP app, then pair your WHOOP (or any Bluetooth heart-rate sensor) to see beats per minute in real time, straight from the sensor rather than the WHOOP cloud.
 - **How it works:** the full methodology, plus the analysis as copyable JSON.
 - **Private by design:** analysis runs on the server with no AI provider or API key involved. Live heart rate stays in your browser; it is never saved or uploaded.
 
-The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Missing readings remain missing; there are no user-facing sample readings or LLM calls.
+The `/live-health` module retains the WHOOP Daily app's features in Rafeeq's design: OAuth connection and revocation, daily recovery guidance, personal 7/30-day baselines, trend charts and exact readings, sleep stages, workouts and heart-rate zones, optional profile/goal controls, transparent methodology, and copyable analysis JSON. Real-mode missing readings remain missing. Demo REST metrics are explicitly mocked by default, with no WHOOP requests or alerts; Bluetooth is never mocked. Daily analysis does not use an LLM. The optional **Your circle of care** section after the methodology supports illustrated, selectable WHOOP alerts and consented Twilio calls to an approved emergency contact. The contact presses 1 before a dedicated ElevenLabs agent receives the alert context for a two-way conversation. Blood pressure and abnormal-rhythm tiles are disabled because those readings are not in WHOOP’s public API. Alerts are session-only, not an emergency service; setup instructions and the voice-agent prompt are in that section. Calling is disabled by default. Configure `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `TWILIO_ALLOWED_NUMBERS`, `LIVE_HEALTH_ELEVENLABS_API_KEY`, `LIVE_HEALTH_ELEVENLABS_AGENT_ID`, public HTTPS `APP_ORIGIN`, and explicitly set `TWILIO_CALLS_ENABLED=true` only after reviewing consent, agent overrides, and retention. The server supplies status and voice callback URLs per call and verifies Twilio’s request signatures; no separate webhook key or phone-number webhook setup is needed for this outbound flow.
 
 Configure `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, and `APP_ORIGIN` in the server environment or local `.env`. Do not copy credentials into frontend code or commit them. Register **`APP_ORIGIN/live-health/auth/whoop/callback`** in your WHOOP developer app.
 
 - Built app (`npm start`): `APP_ORIGIN=http://localhost:3000`; open `http://localhost:3000/live-health`.
 - Hot reload: run `APP_ORIGIN=http://localhost:5173 npm run dev`; open `http://localhost:5173/live-health`. Vite proxies the module's API and OAuth routes to Node. Match the origin exactly, including scheme, host and port.
-- Deployment: set `NODE_ENV=production` and an HTTPS `APP_ORIGIN` behind a TLS proxy. Live Health refuses an insecure production origin. The other demo APIs remain unauthenticated; do not expose the whole app publicly without access controls.
+- Deployment: set `NODE_ENV=production` and an HTTPS `APP_ORIGIN` behind a TLS proxy. Live Health refuses an insecure production origin. The Render deployment uses `APP_ORIGIN=https://rafeeq-fgsm.onrender.com`; its WHOOP app must register `https://rafeeq-fgsm.onrender.com/live-health/auth/whoop/callback` and, for the demo's `/whoop/connect` button, `https://rafeeq-fgsm.onrender.com/whoop/callback`. The other demo APIs remain unauthenticated; do not expose the whole app publicly without access controls.
 - Bluetooth works independently of OAuth: enable WHOOP **Heart Rate Broadcast**, then use Chrome or Edge on HTTPS/localhost and choose your sensor explicitly. Values are browser-only, clear after 10 seconds without fresh packets, and never feed into recovery analysis or health flags.
 - Sessions are isolated per browser with HttpOnly, module-scoped cookies and same-origin POST checks. Tokens and cached cloud data are held in memory, with one-day session expiry and a one-minute response cache. Restarting signs users out; multi-instance hosting needs a secure shared session store and coordinated refreshes.
 - Demo reset and the provider SSE feed do not access Live Health data. Sign out clears the local session; **Disconnect WHOOP** also revokes remote access after confirmation.
 
-Module endpoints are under `/live-health`: `GET /api/session`, `GET /auth/whoop`, `GET /auth/whoop/callback`, and `POST /api/report`, `/api/analysis`, `/api/logout`, `/api/disconnect`. Reports require authentication, a same-origin `Origin` header and JSON containing `timeZone` with optional `profile` (`age`, `sex`, `goal`).
+Module endpoints are under `/live-health`: `GET /api/session`, `GET /auth/whoop`, `GET /auth/whoop/callback`, and `POST /api/report`, `/api/analysis`, `/api/logout`, `/api/disconnect`. Reports require a same-origin `Origin` header and JSON containing `timeZone` with optional `profile` (`age`, `sex`, `goal`); real WHOOP mode additionally requires authentication. Mock reports are marked `sample: true` and `source: mock_rest`, with an `X-Health-Data-Source` header on both report and analysis endpoints. Live Bluetooth BPM is not a REST field.
 
 ## How it fits together
 
 ### Use-case diagram
 
-The diagram separates the synthetic patient/provider demo from the real-data Live Health experience. Rounded nodes represent use cases; the dashed connection is an optional, consented alert flow.
+The diagram separates the synthetic patient/provider demo from Live Health. Live Health defaults to labelled sample REST metrics; WHOOP connection and alerts require real-data mode (`LIVE_HEALTH_SAMPLE_DATA=false`). Rounded nodes represent use cases; the dashed connection is an optional, consented alert flow.
 
 ```mermaid
 flowchart LR
@@ -97,12 +96,12 @@ flowchart LR
             Channels(["Optionally send real phone or WhatsApp outreach"])
             Economics(["Track live activity and illustrative costs and savings"])
         end
-        subgraph Live["Live Health - personal wearable data"]
-            Connect(["Connect or disconnect WHOOP"])
+        subgraph Live["Live Health - labelled sample or personal wearable data"]
+            Connect(["Connect or disconnect WHOOP in real-data mode"])
             Report(["Review daily reports, baselines and methodology"])
             Bluetooth(["Pair a sensor for browser-only live heart rate"])
             Preferences(["Choose contact, thresholds and consent; enable or pause alerts"])
-            CheckIn(["Receive an AI wellness check-in call through Retell"])
+            CheckIn(["Receive an AI wellness check-in through Twilio and ElevenLabs"])
         end
     end
 
@@ -122,7 +121,7 @@ flowchart LR
     Contact --- CheckIn
 ```
 
-Bookings and clinical workflow actions are simulations, not integrations with clinics or payers. Optional phone/WhatsApp outreach and Retell contact calls can reach real people when configured; Live Health alerts are session-only wellness check-ins, not emergency dispatch or continuous monitoring.
+Bookings and clinical workflow actions are simulations, not integrations with clinics or payers. Optional phone/WhatsApp outreach and Live Health contact calls can reach real people when configured; Live Health alerts are session-only wellness check-ins, not emergency dispatch or continuous monitoring. Sample REST metrics never trigger alerts or calls.
 
 ### Architecture diagram
 
@@ -136,36 +135,37 @@ flowchart TB
     subgraph Backend["Node.js backend - no database"]
         Server["HTTP server<br/>Static pages and API routing"]
         Demo["Patient / provider demo APIs<br/>Synthetic data and shared in-memory state"]
-        Live["Isolated Live Health module<br/>WHOOP analysis and opt-in alerts<br/>Private in-memory sessions"]
+        Live["Isolated Live Health module<br/>Labelled sample or WHOOP reports<br/>Real-mode alerts and private sessions"]
         Server --> Demo
         Server --> Live
     end
 
     DemoServices["Demo services<br/>ElevenLabs: voice and text<br/>Groq / OpenRouter: briefs and notes<br/>Twilio: optional phone / WhatsApp"]
     WHOOP["WHOOP<br/>OAuth and health data"]
-    Retell["Retell AI<br/>Opt-in contact calls"]
+    Voice["Opt-in contact calls<br/>Twilio + dedicated ElevenLabs agent"]
     Contact["Consenting emergency contact"]
 
     UI <-->|API requests and demo SSE| Server
     UI <-->|Direct ElevenLabs conversations| DemoServices
     Sensor -->|Live Health only - no upload| UI
     Demo <-->|AI and optional outreach| DemoServices
-    Live <-->|OAuth, readings and signed updates| WHOOP
-    Live <-->|Calls and signed status updates| Retell
-    Retell -->|Wellness check-in| Contact
+    Live <-->|Real-mode OAuth, readings and signed updates| WHOOP
+    Live <-->|Calls and verified callbacks| Voice
+    Voice -->|Wellness check-in| Contact
 ```
 
 External-service arrows show the logical integrations; incoming webhooks still pass through the HTTP server into Live Health for signature verification. Bluetooth data stays in the Live Health browser view, even though the frontend is shown as one box.
 
 **Architecture boundaries:**
 
-- **Demo state and Live Health sessions are separate.** Demo reset, SSE and the demo AI providers do not access Live Health readings. Live Health reports use deterministic analysis, not an LLM; only explicitly consented alert details are sent to Retell.
-- **Bluetooth stays in the browser.** Live heart rate is not uploaded, stored server-side, or used for WHOOP baselines, recovery calculations or contact alerts.
-- **Webhooks are verified before processing.** `/live-health/webhooks/retell` is an alias for `/retell/webhook`. WHOOP updates and a five-minute check evaluate fresh scored main-sleep/recovery data measured after opt-in; Retell events update call status. Calls are disabled by default, with at most one attempt per WHOOP account per 24 hours and no automatic redial.
+- **Demo state and Live Health sessions are separate.** Demo reset, SSE and demo-agent conversations do not access Live Health readings. Live Health reports use deterministic analysis, not an LLM. Consented calls use Twilio and a dedicated ElevenLabs agent, not the demo agents or their tools; alert context reaches ElevenLabs only after the contact presses 1, followed by name confirmation before health details are spoken.
+- **Sample metrics never trigger calls.** Labelled mock REST reports are the default. Set `LIVE_HEALTH_SAMPLE_DATA=false` for WHOOP OAuth and real-data alerts; sample readings are never mixed with WHOOP data or Bluetooth packets.
+- **Bluetooth stays in the browser.** Live heart rate always comes from a real sensor. It is not uploaded, stored server-side, or used for WHOOP baselines, recovery calculations or contact alerts.
+- **Webhooks are verified before processing.** WHOOP updates arrive at `/live-health/webhooks/whoop`; Twilio uses `/live-health/webhooks/twilio/status` and `/live-health/webhooks/twilio/voice`. WHOOP updates and a five-minute check evaluate fresh scored main-sleep/recovery data measured after opt-in; Twilio callbacks update call status and gate the voice handoff. Calls are disabled by default, with at most one attempt per WHOOP account per 24 hours and no automatic redial.
 - **There is no database or durable job queue.** Live Health sessions expire after 24 hours, the health cache lasts one minute, and restarting the process clears sessions and alert preferences. Always-on monitoring would require persistent encrypted storage and durable jobs.
 - **Secrets remain server-side.** Browser conversations use short-lived ElevenLabs signed URLs; WHOOP tokens stay in the Live Health session store. The demo API still needs access controls before public production use.
 
-The older `/whoop/connect`, `/whoop/callback` and `/api/whoop/status` helper routes are separate from Live Health and are omitted from this main-flow diagram. Use `/live-health/auth/whoop` for the Live Health connection flow.
+The older `/whoop/connect`, `/whoop/callback` and `/api/whoop/status` helper routes are separate from Live Health and are omitted from this main-flow diagram. Use `/live-health/auth/whoop` for the Live Health connection flow in real-data mode.
 
 ### The journey
 

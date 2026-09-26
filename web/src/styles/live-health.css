@@ -15,6 +15,8 @@
 .lh-heading h1 { font-size: clamp(44px, 6vw, 86px); line-height: .95; margin: 20px 0; }
 .lh-heading h1 span { color: var(--red); }
 .lh-heading p { margin: 0; }
+.lh-demo-connected { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid #3a6349; background: #e7ede4; color: #244431; font: 11px var(--mono); }
+.lh-demo-connected small { margin: 0; color: #365340; font: 11px/1.5 var(--body); }
 .lh-section-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 14px 0; border-top: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 .lh-section-nav a { text-decoration: none; }
 .lh-section-nav a:hover { color: var(--red-deep); }
@@ -22,6 +24,7 @@
 .lh-message { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; background: var(--paper); border: 1.5px solid var(--ink); padding: 12px 18px; margin-top: 20px; }
 .lh-message p { margin: 0; }
 .lh-error, .lh-health-flag { border-left: 6px solid var(--red); }
+.lh-sample { border-left: 6px solid var(--loam); }
 .lh-welcome, .lh-brief { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 36px; padding: 30px; }
 .lh-welcome { background: var(--loam); color: var(--cream); }
 .lh-welcome .label { color: rgba(231, 226, 216, .65); }

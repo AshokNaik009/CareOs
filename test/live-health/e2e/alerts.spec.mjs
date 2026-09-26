@@ -20,9 +20,9 @@ async function setup(page, ready = true) {
   return saved;
 }
 
-test('the Node server forwards both Retell webhook paths to signature verification', async ({ request }) => {
-  for (const path of ['/retell/webhook', '/retell/webhook/', '/live-health/webhooks/retell']) {
-    const response = await request.post(path, { data: { event: 'call_started', call: { call_id: 'test-only' } } });
+test('the Node server forwards Twilio callbacks to signature verification', async ({ request }) => {
+  for (const path of ['/live-health/webhooks/twilio/status?alert_id=test', '/live-health/webhooks/twilio/voice?alert_id=test']) {
+    const response = await request.post(path, { form: { CallSid: 'test-only', CallStatus: 'completed' } });
     expect(response.status()).toBe(401);
     expect(await response.json()).toEqual({ error: 'Invalid webhook signature.' });
   }
@@ -70,6 +70,12 @@ test('contact alerts require consent, explicit confirmation, and preserve saved 
 
 test('server setup gates calls but permits saving preferences with calls off', async ({ page }) => {
   const saved = await setup(page, false);
+  await expect(page.getByText('Rafeeq × Twilio', { exact: true })).toBeVisible();
+  await expect(page.getByText('Two-way voice by ElevenLabs', { exact: true })).toBeVisible();
+  await page.getByText('Connect Twilio, voice agent & WHOOP', { exact: true }).click();
+  await expect(page.getByText('TWILIO_AUTH_TOKEN', { exact: true })).toBeVisible();
+  await expect(page.getByText('LIVE_HEALTH_ELEVENLABS_AGENT_ID', { exact: true })).toBeVisible();
+  await expect(page.locator('#emergency-alerts')).not.toContainText('Retell');
   await page.getByRole('checkbox', { name: /I have this contact/ }).check();
   await expect(page.getByRole('checkbox', { name: /Let Rafeeq call/ })).toBeDisabled();
   await page.getByRole('button', { name: 'Save alert preferences' }).click();

@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { evaluateAlerts, validatePreferences, verifyWhoopSignature, verifyRetellSignature, createAlertService } from '../../lib/live-health/alerts.mjs';
+import { evaluateAlerts, validatePreferences, verifyWhoopSignature, createAlertService } from '../../lib/live-health/alerts.mjs';
+
+const accountSid = `AC${'1'.repeat(32)}`;
+const callSid = `CA${'2'.repeat(32)}`;
+const callbackParams = (extra = {}) => ({ AccountSid: accountSid, CallSid: callSid, From: '+12025550100', To: '+12025550123', SequenceNumber: '0', ...extra });
 
 const clock = Date.parse('2026-09-25T10:00:00Z');
 const preferences = () => ({ enabled: true, consent: true, patientName: 'Alex', contact: { name: 'Sam', relationship: 'Sibling', phone: '+12025550123' }, rules: { high_resting_hr: 90, low_spo2: 94 } });
@@ -12,9 +16,25 @@ function serviceHarness(options = {}) {
   const sessions = new Map([['session', session]]);
   const calls = [];
   let data = fixture();
-  const service = createAlertService({ sessions, whoop: { data: async () => data, userId: async () => 42 }, now: () => clock, retell: { enabled: true, apiKey: 'test-only-key', agentId: 'test-agent', fromNumber: '+12025550100', allowedNumbers: ['+12025550123'] }, fetchImpl: async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return new Response(JSON.stringify({ call_id: 'call-1' }), { status: 201 }); }, ...options });
+  const service = createAlertService({ sessions, origin: 'https://care.example', whoop: { data: async () => data, userId: async () => 42 }, now: () => clock, twilio: { enabled: true, accountSid, authToken: 'test-only-key', voiceApiKey: 'voice-test-only-key', voiceAgentId: 'test-agent', fromNumber: '+12025550100', allowedNumbers: ['+12025550123'] }, fetchImpl: async (url, init) => {
+    const voice = url.includes('elevenlabs');
+    calls.push({ url, body: voice ? JSON.parse(init.body) : Object.fromEntries(new URLSearchParams(init.body)) });
+    return voice ? new Response('<Response><Connect><Stream url="wss://api.elevenlabs.io/test" /></Connect></Response>') : new Response(JSON.stringify({ sid: callSid }), { status: 201 });
+  }, ...options });
   return { service, session, sessions, calls, setData: value => { data = value; } };
 }
+
+test('mock sessions cannot enter the alert service even with tokens and enabled preferences', async () => {
+  let reads = 0;
+  const h = serviceHarness({ whoop: { data: async () => { reads++; return fixture(); } } });
+  h.session.sample = true;
+  await assert.rejects(h.service.save(h.session, preferences()), error => error.status === 403);
+  h.session.alerts = { preferences: preferences(), armedAt: clock - 120000, events: [] };
+  await h.service.check(h.session);
+  h.service.handleWhoop({ user_id: 42, type: 'recovery.updated', id: 'sleep-1', trace_id: 'sample-event' });
+  assert.equal(reads, 0);
+  assert.equal(h.calls.length, 0);
+});
 
 test('preferences require supported rules, explicit consent and valid contacts', () => {
   assert.deepEqual(validatePreferences(preferences()), preferences());
@@ -37,21 +57,15 @@ test('only fresh, scored, same-user WHOOP readings cross inclusive thresholds', 
   assert.deepEqual(evaluateAlerts(fixture(), preferences().rules, { now: clock, armedAt: clock, userId: 42 }), []);
 });
 
-test('webhooks validate raw body, timestamp, signature and secret', () => {
+test('WHOOP webhooks validate raw body, timestamp, signature and secret', () => {
   const body = '{ "user_id": 42 }';
   const stamp = String(clock);
   const whoop = createHmac('sha256', 'secret').update(stamp + body).digest('base64');
-  const retell = `v=${stamp},d=${createHmac('sha256', 'secret').update(body + stamp).digest('hex')}`;
   assert.equal(verifyWhoopSignature(body, stamp, whoop, 'secret', clock), true);
-  assert.equal(verifyRetellSignature(body, retell, 'secret', clock), true);
-  for (const [value, secret, time] of [[body + ' ', 'secret', clock], [body, 'wrong', clock], [body, 'secret', clock + 300001], [body, '', clock]]) {
-    assert.equal(verifyWhoopSignature(value, stamp, whoop, secret, time), false);
-    assert.equal(verifyRetellSignature(value, retell, secret, time), false);
-  }
-  assert.equal(verifyRetellSignature(body, 'v=no,d=bad', 'secret', clock), false);
+  for (const [value, secret, time] of [[body + ' ', 'secret', clock], [body, 'wrong', clock], [body, 'secret', clock + 300001], [body, '', clock]]) assert.equal(verifyWhoopSignature(value, stamp, whoop, secret, time), false);
 });
 
-test('arming never calls on historical readings; new readings produce one combined Retell call', async () => {
+test('arming never calls on historical readings; new readings produce one combined Twilio call', async () => {
   const h = serviceHarness();
   await h.service.save(h.session, preferences());
   await h.service.check(h.session);
@@ -60,15 +74,20 @@ test('arming never calls on historical readings; new readings produce one combin
   await Promise.all([h.service.check(h.session), h.service.check(h.session)]);
   await h.service.check(h.session);
   assert.equal(h.calls.length, 1);
-  assert.equal(h.calls[0].body.to_number, '+12025550123');
-  assert.equal(h.calls[0].body.override_agent_id, 'test-agent');
-  assert.match(h.calls[0].body.retell_llm_dynamic_variables.alert_summary, /95 bpm/);
-  assert.match(h.calls[0].body.retell_llm_dynamic_variables.alert_summary, /92 %/);
-  assert.equal(h.service.view(h.session).events[0].status, 'submitted');
+  assert.equal(h.calls[0].body.To, '+12025550123');
+  const event = h.service.view(h.session).events[0];
+  assert.equal(event.status, 'submitted');
+  assert.doesNotMatch(h.calls[0].body.Twiml, /95 bpm|Alex/);
+  assert.match(await h.service.handleVoice(event.id, callbackParams({ Digits: '1' })), /<Connect>/);
+  assert.equal(h.calls[1].body.agent_id, 'test-agent');
+  assert.match(h.calls[1].body.conversation_initiation_client_data.dynamic_variables.alert_summary, /95 bpm/);
+  assert.match(h.calls[1].body.conversation_initiation_client_data.dynamic_variables.alert_summary, /92 %/);
+  assert.match(await h.service.handleVoice(event.id, callbackParams({ Digits: '1' })), /<Hangup\/>/);
+  assert.equal(h.calls.length, 2);
 });
 
 test('disabled calling, unapproved destinations and missing consent cannot arm calls', async () => {
-  const h = serviceHarness({ retell: {} });
+  const h = serviceHarness({ twilio: {} });
   await assert.rejects(h.service.save(h.session, preferences()), error => error.status === 503);
   const ready = serviceHarness();
   await assert.rejects(ready.service.save(ready.session, { ...preferences(), contact: { name: 'Other', phone: '+12025550199', relationship: '' } }), error => error.status === 400);
@@ -155,18 +174,18 @@ test('WHOOP events match only the authenticated account and dedupe delivery retr
   assert.equal(h.session.alertChecking, null);
 });
 
-test('Retell callbacks are scoped to submitted alert IDs and do not regress terminal status', async () => {
+test('Twilio callbacks are scoped to submitted alert IDs and do not regress terminal status', async () => {
   const h = serviceHarness();
   await h.service.save(h.session, preferences());
   h.session.alerts.armedAt = clock - 120000;
   await h.service.check(h.session);
   const alert = h.service.view(h.session).events[0];
-  const call = { call_id: 'call-1', agent_id: 'test-agent', metadata: { alert_id: alert.id }, call_status: 'ended', disconnection_reason: 'dial_no_answer' };
-  h.service.handleRetell({ event: 'call_ended', call: { ...call, agent_id: 'wrong' } });
+  const params = callbackParams({ CallStatus: 'no-answer', SequenceNumber: '3' });
+  h.service.handleTwilio(alert.id, { ...params, AccountSid: 'wrong' });
   assert.equal(alert.status, 'submitted');
-  h.service.handleRetell({ event: 'call_ended', call });
+  h.service.handleTwilio(alert.id, params);
   assert.equal(alert.status, 'not_reached');
-  h.service.handleRetell({ event: 'call_started', call });
+  h.service.handleTwilio(alert.id, callbackParams({ CallStatus: 'in-progress', SequenceNumber: '2' }));
   assert.equal(alert.status, 'not_reached');
 });
 
@@ -181,10 +200,11 @@ test('all available rule types use their scored sources without inventing missin
   assert.deepEqual(evaluateAlerts(data, rules, { now: clock, armedAt: clock - 120000, userId: 42 }).map(m => m.ruleId), ['low_recovery']);
 });
 
-test('a Retell callback arriving before an API timeout retains its confirmed status', async () => {
+test('a Twilio callback arriving before an API timeout retains its confirmed status', async () => {
   const h = serviceHarness({ fetchImpl: async (url, init) => {
-    const body = JSON.parse(init.body);
-    h.service.handleRetell({ event: 'call_ended', call: { call_id: 'call-1', agent_id: 'test-agent', metadata: body.metadata, call_status: 'ended' } });
+    const body = new URLSearchParams(init.body);
+    const id = new URL(body.get('StatusCallback')).searchParams.get('alert_id');
+    h.service.handleTwilio(id, callbackParams({ CallStatus: 'completed', SequenceNumber: '3' }));
     throw new Error('Response lost');
   } });
   await h.service.save(h.session, preferences());
@@ -193,7 +213,79 @@ test('a Retell callback arriving before an API timeout retains its confirmed sta
   assert.equal(h.service.view(h.session).events[0].status, 'ended');
 });
 
-test('ambiguous Retell failures are visible and never automatically redialed', async () => {
+test('voice handoff rejects wrong recipients, call SIDs, unknown alerts and declined consent', async () => {
+  const h = serviceHarness();
+  await h.service.save(h.session, preferences());
+  h.session.alerts.armedAt = clock - 120000;
+  await h.service.check(h.session);
+  const id = h.service.view(h.session).events[0].id;
+  for (const params of [callbackParams({ Digits: '1', To: '+12025550999' }), callbackParams({ Digits: '1', AccountSid: 'wrong' }), callbackParams({ Digits: '1', CallSid: `CA${'3'.repeat(32)}` })]) {
+    assert.match(await h.service.handleVoice(id, params), /<Hangup\/>/);
+  }
+  assert.match(await h.service.handleVoice('unknown', callbackParams({ Digits: '1' })), /<Hangup\/>/);
+  assert.match(await h.service.handleVoice(id, callbackParams({ Digits: '2' })), /<Hangup\/>/);
+  assert.match(await h.service.handleVoice(id, callbackParams({ Digits: '1' })), /<Hangup\/>/);
+  assert.equal(h.calls.length, 1);
+});
+
+test('paused, signed-out and expired sessions never release voice-agent context', async () => {
+  for (const action of ['pause', 'logout', 'expire']) {
+    let time = clock;
+    const h = serviceHarness({ now: () => time });
+    await h.service.save(h.session, preferences());
+    h.session.alerts.armedAt = clock - 120000;
+    await h.service.check(h.session);
+    const id = h.service.view(h.session).events[0].id;
+    if (action === 'pause') h.service.pause(h.session);
+    if (action === 'logout') h.sessions.clear();
+    if (action === 'expire') time += 600001;
+    assert.match(await h.service.handleVoice(id, callbackParams({ Digits: '1' })), /<Hangup\/>/);
+    assert.equal(h.calls.length, 1);
+  }
+});
+
+test('pausing during voice registration prevents a late bridge and duplicate registration', async () => {
+  let release;
+  let registrations = 0;
+  const waiting = new Promise(resolve => { release = resolve; });
+  const h = serviceHarness({ fetchImpl: async url => {
+    if (url.includes('twilio.com')) return new Response(JSON.stringify({ sid: callSid }), { status: 201 });
+    registrations++;
+    await waiting;
+    return new Response('<Response><Connect><Stream url="wss://api.elevenlabs.io/test" /></Connect></Response>');
+  } });
+  await h.service.save(h.session, preferences());
+  h.session.alerts.armedAt = clock - 120000;
+  await h.service.check(h.session);
+  const id = h.service.view(h.session).events[0].id;
+  const pending = h.service.handleVoice(id, callbackParams({ Digits: '1' }));
+  assert.match(await h.service.handleVoice(id, callbackParams({ Digits: '1' })), /<Hangup\/>/);
+  h.service.pause(h.session);
+  release();
+  assert.match(await pending, /<Hangup\/>/);
+  assert.equal(registrations, 1);
+});
+
+test('voice provider failures hang up without reading health details or retrying', async () => {
+  let attempts = 0;
+  const h = serviceHarness({ fetchImpl: async url => {
+    if (url.includes('twilio.com')) return new Response(JSON.stringify({ sid: callSid }), { status: 201 });
+    attempts++;
+    throw new Error('provider secret failure');
+  } });
+  await h.service.save(h.session, preferences());
+  h.session.alerts.armedAt = clock - 120000;
+  await h.service.check(h.session);
+  const event = h.service.view(h.session).events[0];
+  const response = await h.service.handleVoice(event.id, callbackParams({ Digits: '1' }));
+  assert.match(response, /<Hangup\/>/);
+  assert.doesNotMatch(response, /Alex|95|secret/);
+  assert.equal(event.voiceStatus, 'failed');
+  await h.service.handleVoice(event.id, callbackParams({ Digits: '1' }));
+  assert.equal(attempts, 1);
+});
+
+test('ambiguous Twilio failures are visible and never automatically redialed', async () => {
   let attempts = 0;
   const h = serviceHarness({ fetchImpl: async () => { attempts++; throw new Error('timeout with secret'); } });
   await h.service.save(h.session, preferences());

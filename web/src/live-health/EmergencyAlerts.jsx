@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ALERT_RULES, emptyPreferences, RETELL_ALERT_PROMPT } from '../../../lib/live-health/alert-rules.mjs';
+import { ALERT_RULES, emptyPreferences, ALERT_AGENT_PROMPT } from '../../../lib/live-health/alert-rules.mjs';
 
-const eventLabels = { submitting: 'Requesting call', submitted: 'Submitted to Retell · delivery not confirmed', in_progress: 'Call in progress', ended: 'Call ended · contact acknowledgement not verified', not_reached: 'Contact not reached', failed: 'Call request failed · no automatic retry', delivery_unknown: 'Delivery unknown · no automatic retry', cooldown: 'Call suppressed · 24-hour limit' };
+const eventLabels = { submitting: 'Requesting call', submitted: 'Submitted to Twilio · delivery not confirmed', ringing: 'Contact phone ringing', in_progress: 'Call in progress', ended: 'Call ended · contact acknowledgement not verified', not_reached: 'Contact not reached', failed: 'Call request failed · no automatic retry', delivery_unknown: 'Delivery unknown · no automatic retry', cooldown: 'Call suppressed · 24-hour limit' };
+const voiceLabels = { connecting: 'Connecting the AI voice agent', connected: 'Voice bridge returned · conversation delivery not verified', declined: 'Recipient did not agree to continue', failed: 'Voice agent connection failed' };
 
 function Illustration({ icon }) {
   return <svg className={`lh-alert-art lh-alert-art-${icon}`} viewBox="0 0 240 104" fill="none" aria-hidden="true">
@@ -17,7 +18,7 @@ function Illustration({ icon }) {
   </svg>;
 }
 
-export default function EmergencyAlerts({ connected, api }) {
+export default function EmergencyAlerts({ connected, api, mockRest = false }) {
   const [draft, setDraft] = useState(emptyPreferences);
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -60,7 +61,7 @@ export default function EmergencyAlerts({ connected, api }) {
 
   async function save(event) {
     event.preventDefault();
-    if (draft.enabled && !window.confirm(`Enable automated AI calls from Rafeeq to ${draft.contact.name} at ${draft.contact.phone} when a new WHOOP reading meets a selected threshold? This shares your name and the matched readings with Retell and your contact.`)) return;
+    if (draft.enabled && !window.confirm(`Enable automated AI calls from Rafeeq to ${draft.contact.name} at ${draft.contact.phone} when a new WHOOP reading meets a selected threshold? This shares your name and the matched readings with Twilio, ElevenLabs, and your contact.`)) return;
     setBusy(true); setError(''); setMessage('');
     try {
       const data = await api('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...draft, rules: Object.fromEntries(Object.entries(draft.rules).map(([id, value]) => [id, Number(value)])) }) });
@@ -74,7 +75,7 @@ export default function EmergencyAlerts({ connected, api }) {
     setBusy(true); setError('');
     try {
       const data = await api('/api/alerts/pause', { method: 'POST' });
-      setStatus(data); setDraft(data.preferences); setDirty(false); setMessage('Automatic calls paused. A call already submitted to Retell cannot be cancelled here.');
+      setStatus(data); setDraft(data.preferences); setDirty(false); setMessage('Automatic calls paused. A call already submitted to Twilio cannot be cancelled here.');
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -84,10 +85,10 @@ export default function EmergencyAlerts({ connected, api }) {
   return <section className="card lh-alerts" id="emergency-alerts" aria-labelledby="lh-alerts-title">
     <header className="lh-alerts-heading">
       <div><p className="label">Your circle of care</p><h2 className="lh-display-title" id="lh-alerts-title">A little backup.<br /><span>Someone you trust.</span></h2><p>Choose the signals that matter. If a new WHOOP reading meets your threshold, Rafeeq can call your emergency contact for a check-in.</p></div>
-      <div className={`lh-alert-state ${enabled ? 'lh-alert-state-on' : ''}`}><span className="label">Rafeeq × Retell AI</span><strong>{expired ? 'Session expired' : enabled ? 'Calls enabled' : 'Calls are off'}</strong><span>{enabled ? 'Session-only wellness alerts' : 'You decide when to switch on'}</span></div>
+      <div className={`lh-alert-state ${enabled ? 'lh-alert-state-on' : ''}`}><span className="label">Rafeeq × Twilio</span><strong>{expired ? 'Session expired' : enabled ? 'Calls enabled' : 'Calls are off'}</strong><span>{enabled ? 'Session-only wellness alerts' : 'You decide when to switch on'}</span><span>Two-way voice by ElevenLabs</span></div>
     </header>
     <div className="lh-alert-notice"><strong>A check-in, not an emergency service.</strong> WHOOP provides delayed, scored readings—not continuous monitoring. These alerts cannot detect a medical emergency. If you feel seriously unwell, contact local emergency services directly.</div>
-    {!connected && <p className="lh-alert-hint">Connect WHOOP above to choose alerts and save your emergency contact.</p>}
+    {!connected && <p className="lh-alert-hint">{mockRest ? 'Calls disabled: REST metrics are mocked. Real Bluetooth heart rate is display-only and never triggers a call. Switch the server to real WHOOP mode before enabling contact alerts.' : 'Connect WHOOP above to choose alerts and save your emergency contact.'}</p>}
     {error && <div className="lh-message lh-error" role="alert"><p>{error}</p><button type="button" className="btn sm" onClick={() => setAttempt(v => v + 1)}>Reload alert settings</button></div>}
     {expired && <p className="lh-alert-hint">Reconnect WHOOP to set up alerts again. This session is no longer monitoring.</p>}
     <form onSubmit={save}>
@@ -114,7 +115,7 @@ export default function EmergencyAlerts({ connected, api }) {
         </div>
         <div className="lh-alert-permission">
           <h3 className="lh-alert-step"><span>03</span> Put your plan in place</h3>
-          <label className="lh-alert-checkline"><input type="checkbox" checked={draft.consent} onChange={e => update({ consent: e.target.checked, enabled: e.target.checked ? draft.enabled : false })} /><span>I have this contact’s permission to receive automated AI calls. I agree to share my name and matched WHOOP readings with Retell AI and this contact.</span></label>
+          <label className="lh-alert-checkline"><input type="checkbox" checked={draft.consent} onChange={e => update({ consent: e.target.checked, enabled: e.target.checked ? draft.enabled : false })} /><span>I have this contact’s permission to receive automated AI calls. I agree to share my name and matched WHOOP readings with Twilio, ElevenLabs, and this contact, and to have the AI conversation processed by these providers.</span></label>
           <label className="lh-alert-checkline lh-alert-enable"><input type="checkbox" checked={draft.enabled} disabled={!status?.ready || !draft.consent} onChange={e => update({ enabled: e.target.checked })} /><span><strong>Let Rafeeq call my emergency contact</strong><small>Only selected signals. At most one call attempt per WHOOP account every 24 hours. No automatic redial.</small></span></label>
           {connected && status && !status.ready && <p className="small muted">Calling setup is incomplete on the server. You can save your preferences with calls off.</p>}
         </div>
@@ -123,13 +124,14 @@ export default function EmergencyAlerts({ connected, api }) {
       {message && <p className="lh-alert-hint" role="status">{message}</p>}
     </form>
     <div className="lh-alert-lifetime"><strong>Session-only, not always-on protection.</strong><p>Preferences and contact details are held in server memory only. Alerts stop on sign-out, disconnect, session expiry (24 hours), or server restart—even if your browser still shows this page. Closing the tab does not pause an active session. Webhooks and a five-minute server check look for new readings; old or missing readings never trigger a call. Re-saving starts a new monitoring window.</p>{status?.expiresAt && <p>Session ends: {new Date(status.expiresAt).toLocaleString()}. Last successful check: {status.lastCheckedAt ? new Date(status.lastCheckedAt).toLocaleString() : 'Not checked yet'}.</p>}{status?.issue && <p className="lh-error" role="alert">{status.issue}</p>}</div>
-    {!!status?.events.length && <div className="lh-alert-history"><h3 className="label">Recent alert activity</h3><ul>{status.events.map(event => <li key={event.id}><div><strong>{eventLabels[event.status] ?? 'Status unavailable'}</strong><time dateTime={event.at}>{new Date(event.at).toLocaleString()}</time></div><p>{event.readings.map(reading => `${reading.title}: ${reading.value} ${reading.unit}`).join(' · ')}</p></li>)}</ul></div>}
-    <details className="lh-alert-setup"><summary>Connect Retell & WHOOP webhooks</summary><ol>
-      <li>On the server, set a rotated <code>RETELL_API_KEY</code>, <code>RETELL_AGENT_ID</code>, and <code>RETELL_FROM_NUMBER</code> (a number owned or imported in Retell). Add consenting destinations to the comma-separated <code>RETELL_ALLOWED_NUMBERS</code>. Set <code>RETELL_CALLS_ENABLED=true</code> only after reviewing this setup.</li>
-      <li>Use a Retell LLM agent with the prompt below and dynamic variables <code>patient_name</code>, <code>contact_name</code>, and <code>alert_summary</code>. Review recording, transcript retention, and voicemail settings in Retell before enabling calls. Availability depends on your telephony provider and destination country.</li>
-      <li>Register <code>APP_ORIGIN/live-health/webhooks/whoop</code> as a WHOOP v2 webhook. Reconnect WHOOP to grant <code>read:profile</code>, used only to match your account ID to signed events.</li>
-      <li>Register <code>APP_ORIGIN/retell/webhook</code> on the Retell agent for call-started, call-ended, and call-analyzed events—not the site’s root URL. The existing <code>APP_ORIGIN/live-health/webhooks/retell</code> endpoint also works. Set <code>RETELL_WEBHOOK_KEY</code> in your hosting service’s environment to the key marked for webhook verification; if omitted, the server uses <code>RETELL_API_KEY</code>. Both webhook URLs need a public HTTPS origin. Redeploy the Node web service after changing the server or its environment.</li>
+    {!!status?.events.length && <div className="lh-alert-history"><h3 className="label">Recent alert activity</h3><ul>{status.events.map(event => <li key={event.id}><div><strong>{eventLabels[event.status] ?? 'Status unavailable'}</strong><time dateTime={event.at}>{new Date(event.at).toLocaleString()}</time></div><p>{event.readings.map(reading => `${reading.title}: ${reading.value} ${reading.unit}`).join(' · ')}</p>{event.voiceStatus && <p>{voiceLabels[event.voiceStatus] ?? 'Voice status unavailable'}</p>}</li>)}</ul></div>}
+    <details className="lh-alert-setup"><summary>Connect Twilio, voice agent & WHOOP</summary><ol>
+      <li>On the server, set <code>TWILIO_ACCOUNT_SID</code>, a rotated <code>TWILIO_AUTH_TOKEN</code>, and <code>TWILIO_FROM_NUMBER</code> (a voice-capable number in that Twilio account). Add consenting destinations to the comma-separated <code>TWILIO_ALLOWED_NUMBERS</code>. Trial accounts require verified destination numbers; enable the appropriate Voice geographic permissions in Twilio.</li>
+      <li>Twilio handles the phone call; ElevenLabs supplies the two-way AI voice. Set <code>LIVE_HEALTH_ELEVENLABS_API_KEY</code> and <code>LIVE_HEALTH_ELEVENLABS_AGENT_ID</code> for a dedicated alert agent, not a demo agent. Enable system-prompt and first-message overrides on that agent. The server sends the prompt below with <code>patient_name</code>, <code>contact_name</code>, and <code>alert_summary</code> only after the contact presses 1. Do not attach booking, transfer, or demo-action tools.</li>
+      <li>Review ElevenLabs audio/transcript retention before enabling calls. Twilio call recording is disabled by this app. Calls are capped at three minutes. The recipient must press 1 and confirm their name to the agent before health details are spoken; this is self-confirmation, not strong identity verification.</li>
+      <li>Set <code>APP_ORIGIN</code> to your public HTTPS origin. The server automatically supplies <code>APP_ORIGIN/live-health/webhooks/twilio/status</code> and <code>APP_ORIGIN/live-health/webhooks/twilio/voice</code> on each call. Do not enter the site root or change query parameters. Both endpoints verify <code>X-Twilio-Signature</code> with the account Auth Token; no separate webhook key is needed.</li>
+      <li>Register <code>APP_ORIGIN/live-health/webhooks/whoop</code> as a WHOOP v2 webhook. Reconnect WHOOP to grant <code>read:profile</code>, used only to match your account ID to signed events. Set <code>TWILIO_CALLS_ENABLED=true</code> only after reviewing the full setup, then redeploy your Node web service.</li>
       <li>For reliable, long-running monitoring, this app still needs persistent encrypted account storage and a durable job queue. This session-only feature is not a medical alert system.</li>
-    </ol><pre>{RETELL_ALERT_PROMPT}</pre></details>
+    </ol><pre>{ALERT_AGENT_PROMPT}</pre></details>
   </section>;
 }
