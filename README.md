@@ -75,6 +75,98 @@ Module endpoints are under `/live-health`: `GET /api/session`, `GET /auth/whoop`
 
 ## How it fits together
 
+### Use-case diagram
+
+The diagram separates the synthetic patient/provider demo from the real-data Live Health experience. Rounded nodes represent use cases; the dashed connection is an optional, consented alert flow.
+
+```mermaid
+flowchart LR
+    Patient["Patient / resident"]
+    Coordinator["Care coordinator"]
+    Provider["Provider manager"]
+    Member["Live Health user"]
+    Contact["Consenting emergency contact"]
+
+    subgraph Rafeeq["Rafeeq"]
+        subgraph Demo["Patient agent and Provider Care OS - synthetic records"]
+            Review(["Review records and evidence-backed findings"])
+            Converse(["Discuss findings in Arabic or English by voice or text"])
+            FollowUp(["Consent to simulated bookings, pre-authorisations and care-team alerts"])
+            Prioritise(["Prioritise members and review pre-call briefs"])
+            Outreach(["Simulate outreach, record outcomes and review notes"])
+            Channels(["Optionally send real phone or WhatsApp outreach"])
+            Economics(["Track live activity and illustrative costs and savings"])
+        end
+        subgraph Live["Live Health - personal wearable data"]
+            Connect(["Connect or disconnect WHOOP"])
+            Report(["Review daily reports, baselines and methodology"])
+            Bluetooth(["Pair a sensor for browser-only live heart rate"])
+            Preferences(["Choose contact, thresholds and consent; enable or pause alerts"])
+            CheckIn(["Receive an AI wellness check-in call through Retell"])
+        end
+    end
+
+    Patient --- Review
+    Patient --- Converse
+    Patient --- FollowUp
+    Coordinator --- Prioritise
+    Coordinator --- Outreach
+    Coordinator --- Channels
+    Coordinator --- Economics
+    Provider --- Economics
+    Member --- Connect
+    Member --- Report
+    Member --- Bluetooth
+    Member --- Preferences
+    Preferences -.->|New eligible WHOOP reading meets a selected threshold| CheckIn
+    Contact --- CheckIn
+```
+
+Bookings and clinical workflow actions are simulations, not integrations with clinics or payers. Optional phone/WhatsApp outreach and Retell contact calls can reach real people when configured; Live Health alerts are session-only wellness check-ins, not emergency dispatch or continuous monitoring.
+
+### Architecture diagram
+
+Rafeeq runs in a single Node.js process with two logically separate domains. The React pages are built by Vite and served from `dist/`; during development, Vite serves the frontend and proxies API, OAuth and webhook routes to Node.
+
+```mermaid
+flowchart TB
+    UI["React + Vite frontend<br/>Patient agent / Provider Care OS / Live Health"]
+    Sensor["Bluetooth heart-rate sensor"]
+
+    subgraph Backend["Node.js backend - no database"]
+        Server["HTTP server<br/>Static pages and API routing"]
+        Demo["Patient / provider demo APIs<br/>Synthetic data and shared in-memory state"]
+        Live["Isolated Live Health module<br/>WHOOP analysis and opt-in alerts<br/>Private in-memory sessions"]
+        Server --> Demo
+        Server --> Live
+    end
+
+    DemoServices["Demo services<br/>ElevenLabs: voice and text<br/>Groq / OpenRouter: briefs and notes<br/>Twilio: optional phone / WhatsApp"]
+    WHOOP["WHOOP<br/>OAuth and health data"]
+    Retell["Retell AI<br/>Opt-in contact calls"]
+    Contact["Consenting emergency contact"]
+
+    UI <-->|API requests and demo SSE| Server
+    UI <-->|Direct ElevenLabs conversations| DemoServices
+    Sensor -->|Live Health only - no upload| UI
+    Demo <-->|AI and optional outreach| DemoServices
+    Live <-->|OAuth, readings and signed updates| WHOOP
+    Live <-->|Calls and signed status updates| Retell
+    Retell -->|Wellness check-in| Contact
+```
+
+External-service arrows show the logical integrations; incoming webhooks still pass through the HTTP server into Live Health for signature verification. Bluetooth data stays in the Live Health browser view, even though the frontend is shown as one box.
+
+**Architecture boundaries:**
+
+- **Demo state and Live Health sessions are separate.** Demo reset, SSE and the demo AI providers do not access Live Health readings. Live Health reports use deterministic analysis, not an LLM; only explicitly consented alert details are sent to Retell.
+- **Bluetooth stays in the browser.** Live heart rate is not uploaded, stored server-side, or used for WHOOP baselines, recovery calculations or contact alerts.
+- **Webhooks are verified before processing.** `/live-health/webhooks/retell` is an alias for `/retell/webhook`. WHOOP updates and a five-minute check evaluate fresh scored main-sleep/recovery data measured after opt-in; Retell events update call status. Calls are disabled by default, with at most one attempt per WHOOP account per 24 hours and no automatic redial.
+- **There is no database or durable job queue.** Live Health sessions expire after 24 hours, the health cache lasts one minute, and restarting the process clears sessions and alert preferences. Always-on monitoring would require persistent encrypted storage and durable jobs.
+- **Secrets remain server-side.** Browser conversations use short-lived ElevenLabs signed URLs; WHOOP tokens stay in the Live Health session store. The demo API still needs access controls before public production use.
+
+The older `/whoop/connect`, `/whoop/callback` and `/api/whoop/status` helper routes are separate from Live Health and are omitted from this main-flow diagram. Use `/live-health/auth/whoop` for the Live Health connection flow.
+
 ### The journey
 
 1. **Landing (`/`)** tells the story (*the record already knew; nobody acted on it*) and links to both apps.
